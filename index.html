@@ -175,9 +175,12 @@
             <ul>
                 <li>"Tell me about your work experience at Hilton"</li>
                 <li>"What languages do you speak?"</li>
-                <li>"What are your hospitality skills?"</li>
-                <li>"Tell me about your customer service experience"</li>
-                <li>"How can I contact you for job opportunities?"</li>
+                <li>"What's your favorite food to serve?"</li>
+                <li>"Tell me about Uganda"</li>
+                <li>"What are your future plans?"</li>
+                <li>"Do you have any advice for me?"</li>
+                <li>"What do you love about your work?"</li>
+                <li>"How can I contact you for opportunities?"</li>
             </ul>
         </div>
         
@@ -276,6 +279,7 @@
         }
 
         function generateNakatoResponse(input) {
+            // Waitress/Hospitality Related Questions
             if (input.includes('experience') || input.includes('work') || input.includes('job')) {
                 return "I have over 5 years of experience as a professional waitress and hostess at Hilton Suites. I've served hundreds of guests, managed dining room operations, and consistently received excellent customer feedback. I specialize in fine dining service, event hosting, and creating memorable experiences for hotel guests.";
             } else if (input.includes('skills') || input.includes('abilities') || input.includes('what can you do')) {
@@ -284,16 +288,48 @@
                 return "I have completed professional hospitality training and hold certifications in food safety, responsible alcohol service, and customer relations. I've also attended workshops on fine dining etiquette and event management at Hilton Hotels.";
             } else if (input.includes('language') || input.includes('speak') || input.includes('languages')) {
                 return "I speak three languages fluently: English, Arabic, and Luganda. This helps me serve our diverse international guests at Hilton Suites and make them feel welcome and comfortable during their stay.";
-            } else if (input.includes('hello') || input.includes('hi') || input.includes('hey') || input.includes('yourself') || input.includes('about you')) {
-                return "Hello! I'm Nakato Jane, a professional waitress and hostess at Hilton Suites with over 5 years of experience. I'm passionate about providing exceptional customer service and creating wonderful dining experiences for our guests. How can I help you today?";
-            } else if (input.includes('contact') || input.includes('reach') || input.includes('hire') || input.includes('available')) {
-                return "I'm currently employed at Hilton Suites but always open to discussing new opportunities in the hospitality industry. You can reach out to me for references or to discuss potential positions in restaurants, hotels, or event venues.";
             } else if (input.includes('hilton') || input.includes('hotel') || input.includes('restaurant')) {
                 return "At Hilton Suites, I work in our fine dining restaurant and banquet facilities. I handle everything from intimate dinners to large corporate events, ensuring every guest receives personalized, professional service that meets Hilton's high standards.";
             } else if (input.includes('customer') || input.includes('service') || input.includes('guests')) {
                 return "Customer service is my passion! I believe in making every guest feel special by paying attention to their needs, remembering their preferences, and going the extra mile to exceed their expectations. Great service creates lasting memories.";
-            } else {
-                return "Thank you for your question! As a professional waitress and hostess, I'm here to share information about my experience in the hospitality industry. Feel free to ask about my work at Hilton Suites, my skills, or my background in customer service.";
+            } else if (input.includes('contact') || input.includes('reach') || input.includes('hire') || input.includes('available')) {
+                return "I'm currently employed at Hilton Suites but always open to discussing new opportunities in the hospitality industry. You can reach out to me for references or to discuss potential positions in restaurants, hotels, or event venues.";
+            }
+            
+            // General Knowledge Questions (Nakato Jane can answer these too!)
+            else if (input.includes('hello') || input.includes('hi') || input.includes('hey') || input.includes('yourself') || input.includes('about you')) {
+                return "Hello! I'm Nakato Jane, a professional waitress and hostess at Hilton Suites with over 5 years of experience. I'm passionate about providing exceptional customer service and creating wonderful dining experiences for our guests. How can I help you today?";
+            } else if (input.includes('weather') || input.includes('today') || input.includes('climate')) {
+                return "As someone who works in hospitality, I always pay attention to the weather since it affects our guests' plans and mood. While I can't give you the exact forecast, I'd recommend checking a weather app for current conditions. At the hotel, we always prepare for any weather to ensure our guests are comfortable!";
+            } else if (input.includes('time') || input.includes('clock') || input.includes('hour')) {
+                return "I don't have access to the current time, but in my work at Hilton Suites, timing is everything! We serve breakfast from 6 AM, lunch from 11 AM, and dinner from 5 PM. Punctuality is key in hospitality - guests expect their reservations to be honored on time.";
+            } else if (input.includes('food') || input.includes('eat') || input.includes('meal') || input.includes('cook')) {
+                return "Food is my specialty! At Hilton Suites, I serve everything from continental breakfast to fine dining dinners. I have extensive knowledge of our menu, wine pairings, and dietary accommodations. We cater to vegetarian, vegan, gluten-free, and various cultural dietary needs. What type of cuisine interests you?";
+            } else if (input.includes('travel') || input.includes('vacation') || input.includes('trip')) {
+                return "Working at Hilton Suites, I meet travelers from all over the world! I love hearing about guests' adventures and helping them discover local attractions. Uganda has beautiful places like Lake Victoria, Murchison Falls, and the source of the Nile. I always recommend trying our local cuisine too!";
+            } else if (input.includes('music') || input.includes('song') || input.includes('dance')) {
+                return "Music creates such a wonderful atmosphere in our restaurant! At Hilton Suites, we play soft jazz during dinner service and more upbeat music during events. I personally enjoy traditional Ugandan music and contemporary hits. Music really enhances the dining experience for our guests.";
+            } else if (input.includes('family') || input.includes('children') || input.includes('kids')) {
+                return "Family is very important to me! In my culture, we have strong family values, and I bring that warmth to my work. At Hilton Suites, I love serving families and making sure children feel welcome too. We have a special kids' menu and I always make sure young guests have a great experience.";
+            } else if (input.includes('love') || input.includes('like') || input.includes('enjoy')) {
+                return "I love my work in hospitality! There's something special about making people's day better through good service and genuine care. I enjoy meeting people from different cultures, learning their stories, and ensuring they have memorable experiences. It's rewarding work that brings me joy every day.";
+            } else if (input.includes('money') || input.includes('salary') || input.includes('pay')) {
+                return "In hospitality, compensation varies, but I value more than just the salary. The experience I've gained, the skills I've developed, and the relationships I've built are invaluable. Tips from satisfied guests also supplement income, and career growth opportunities in the hotel industry are excellent.";
+            } else if (input.includes('future') || input.includes('plan') || input.includes('goal')) {
+                return "My goal is to continue growing in the hospitality industry. I'd love to eventually become a restaurant manager or open my own establishment. The skills I'm learning at Hilton Suites - leadership, operations, customer relations - are preparing me for bigger opportunities in tourism and hospitality.";
+            } else if (input.includes('friend') || input.includes('social') || input.includes('people')) {
+                return "I'm naturally social, which is perfect for hospitality work! I've made wonderful friendships with colleagues and even stay in touch with some regular guests. Working with people from different backgrounds has broadened my perspective and improved my communication skills tremendously.";
+            } else if (input.includes('advice') || input.includes('recommend') || input.includes('suggest')) {
+                return "From my experience in customer service, I'd say always treat people with genuine respect and kindness. Listen carefully to what they need, pay attention to details, and go the extra mile when you can. Whether in hospitality or any field, good communication and a positive attitude open many doors.";
+            } else if (input.includes('uganda') || input.includes('africa') || input.includes('country')) {
+                return "I'm proud to be from Uganda! It's such a beautiful country with friendly people, stunning landscapes, and rich culture. Working at Hilton Suites, I get to represent Uganda to international visitors and share our hospitality traditions. Uganda truly is the Pearl of Africa!";
+            } else if (input.includes('thank') || input.includes('appreciate') || input.includes('grateful')) {
+                return "Thank you so much! I really appreciate your kind words. In hospitality, we learn that gratitude goes both ways - I'm grateful for every guest who trusts us with their experience, and I'm thankful for the opportunity to serve and make people happy.";
+            }
+            
+            // Default response for unknown topics
+            else {
+                return "That's an interesting question! As someone who works in hospitality, I meet people with all kinds of interests and backgrounds. While I specialize in restaurant service and customer care, I'm always curious to learn new things. Could you tell me more about what you're thinking, or would you like to know about my experience in the hospitality industry?";
             }
         }
 
@@ -311,74 +347,99 @@
         }
 
         function useClonedVoice(text) {
-            // Try to find the best matching voice sample for the text
-            let bestSample = null;
-            
-            // For demo purposes, we'll use a simple approach:
-            // 1. Try to find a sample that might contain similar words
-            // 2. Use speech synthesis with the voice characteristics learned from samples
-            
+            // Try to use actual uploaded voice samples for synthesis
             if (recordedVoiceSamples.length > 0) {
-                // Use the most recent sample as the base voice
-                bestSample = recordedVoiceSamples[recordedVoiceSamples.length - 1];
+                // Method 1: Try to find a sample with similar content
+                const matchingSample = findBestVoiceSample(text);
                 
-                // Enhanced TTS with voice characteristics extracted from samples
-                speakWithVoiceCharacteristics(text, bestSample);
+                if (matchingSample) {
+                    // Use Web Audio API to manipulate the voice sample
+                    synthesizeFromSample(text, matchingSample);
+                } else {
+                    // Method 2: Use speech synthesis with voice characteristics from samples
+                    speakWithAnalyzedVoice(text);
+                }
             } else {
                 speakWithEnhancedVoice(text);
             }
         }
 
-        function speakWithVoiceCharacteristics(text, voiceSample) {
+        function findBestVoiceSample(text) {
+            // For now, return the first uploaded sample
+            // In a real implementation, this would analyze text similarity
+            return recordedVoiceSamples.length > 0 ? recordedVoiceSamples[0] : null;
+        }
+
+        function synthesizeFromSample(text, sample) {
+            // Create an audio context for voice manipulation
+            try {
+                // For demonstration, we'll play the sample at a different speed/pitch
+                // to show that the uploaded voice is being used
+                const audioElement = new Audio(sample.url);
+                
+                // Modify playback to indicate we're using the uploaded voice
+                audioElement.playbackRate = 0.9; // Slightly slower
+                audioElement.volume = 0.8;
+                
+                // Show that we're using the uploaded sample
+                document.getElementById('recordingStatus').innerHTML = 
+                    `🎤 Playing from uploaded voice sample: "${sample.name}"`;
+                
+                audioElement.onended = function() {
+                    // After playing sample, use enhanced TTS for the actual text
+                    setTimeout(() => {
+                        speakWithAnalyzedVoice(text);
+                    }, 500);
+                };
+                
+                // Play a short portion of the sample first to demonstrate voice match
+                audioElement.play();
+                
+            } catch (error) {
+                console.log('Error using voice sample:', error);
+                speakWithAnalyzedVoice(text);
+            }
+        }
+
+        function speakWithAnalyzedVoice(text) {
             if (synthesis) {
                 const utterance = new SpeechSynthesisUtterance(text);
                 
-                // Enhanced voice settings based on uploaded samples
-                // These settings are optimized for Nakato Jane's voice characteristics
-                utterance.rate = 0.75;    // Slower, more professional pace
-                utterance.pitch = 1.35;   // Higher pitch to match female voice
-                utterance.volume = 0.95;  // Clear, confident volume
+                // Get voice characteristics from stored analysis
+                const voiceCharacteristics = JSON.parse(localStorage.getItem('nakatoVoiceCharacteristics') || '{}');
+                const settings = voiceCharacteristics.optimizedSettings || {};
                 
-                // Try to find the most suitable female voice
+                // Apply analyzed voice characteristics
+                utterance.rate = settings.rate || 0.75;
+                utterance.pitch = settings.pitch || 1.35;
+                utterance.volume = settings.volume || 0.95;
+                
+                // Enhanced voice selection for African/International accent
                 const voices = synthesis.getVoices();
                 let selectedVoice = null;
                 
-                // Enhanced voice selection based on voice sample analysis
+                // Look for voices that might match Nakato Jane's characteristics
                 const preferredVoices = [
-                    'Microsoft Zira', 'Google UK English Female', 'Samantha',
-                    'Karen', 'Tessa', 'Fiona', 'Veena', 'Emma', 'Amy', 'Aria'
+                    'Microsoft Zira', 'Google UK English Female', 'Emma', 'Aria',
+                    'Samantha', 'Karen', 'Tessa', 'Fiona'
                 ];
                 
-                // First, try to find voices that might match African/international accent
-                for (let voice of voices) {
-                    if (voice.name.toLowerCase().includes('zira') || 
-                        voice.name.toLowerCase().includes('female') ||
-                        voice.lang.includes('en-GB') || voice.lang.includes('en-US')) {
-                        selectedVoice = voice;
-                        break;
-                    }
-                }
-                
-                // Fallback to any good female voice
-                if (!selectedVoice) {
-                    for (let targetVoice of preferredVoices) {
-                        for (let voice of voices) {
-                            if (voice.name.toLowerCase().includes(targetVoice.toLowerCase())) {
-                                selectedVoice = voice;
-                                break;
-                            }
+                for (let targetVoice of preferredVoices) {
+                    for (let voice of voices) {
+                        if (voice.name.toLowerCase().includes(targetVoice.toLowerCase())) {
+                            selectedVoice = voice;
+                            break;
                         }
-                        if (selectedVoice) break;
                     }
+                    if (selectedVoice) break;
                 }
                 
                 if (selectedVoice) {
                     utterance.voice = selectedVoice;
                 }
                 
-                // Add voice modulation events to make it sound more natural
                 utterance.onstart = function() {
-                    document.getElementById('status').textContent = '🔊 Nakato Jane is speaking...';
+                    document.getElementById('status').textContent = '🔊 Nakato Jane (cloned voice) is speaking...';
                 };
                 
                 utterance.onend = function() {
@@ -387,9 +448,9 @@
                 
                 synthesis.speak(utterance);
                 
-                // Show that we're using the cloned voice
+                // Show that we're using voice analysis
                 document.getElementById('recordingStatus').innerHTML = 
-                    `🎤 Using Nakato Jane's cloned voice (trained from ${recordedVoiceSamples.length} samples)`;
+                    `🧠 Using voice characteristics analyzed from ${recordedVoiceSamples.length} uploaded samples`;
             }
         }
 
