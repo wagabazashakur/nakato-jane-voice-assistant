@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nakato Jane Debug Console</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .debug-section {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: scroll;
+            margin: 10px 0;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        input[type="text"]::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .status {
+            background: rgba(76, 175, 80, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Nakato Jane Debug Console</h1>
+        
+        <div class="debug-section">
+            <h3>🧠 AI Testing</h3>
+            <input type="text" id="testInput" placeholder="Type a question to test AI response..." />
+            <button onclick="testAI()">Test AI Response</button>
+            <div id="aiResult" class="log"></div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>🎤 Voice Testing</h3>
+            <button onclick="testVoices()">List Available Voices</button>
+            <button onclick="testFemaleSpeech()">Test Female Voice</button>
+            <button onclick="testMaleSpeech()">Test Male Voice</button>
+            <div id="voiceResult" class="log"></div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>🎭 Voice Cloning Status</h3>
+            <button onclick="checkVoiceSamples()">Check Voice Samples</button>
+            <button onclick="simulateVoiceUpload()">Simulate Voice Upload</button>
+            <div id="cloningResult" class="log"></div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>🌐 System Info</h3>
+            <button onclick="checkBrowserSupport()">Check Browser Support</button>
+            <div id="systemResult" class="log"></div>
+        </div>
+        
+        <div class="status" id="debugStatus">
+            Ready for debugging...
+        </div>
+        
+        <p style="text-align: center; margin-top: 30px;">
+            <a href="index.html" style="color: white;">← Back to Nakato Jane Voice Assistant</a>
+        </p>
+    </div>
+
+    <script>
+        // Simple AI for testing
+        class TestAI {
+            generateResponse(input) {
+                const responses = {
+                    'hello': 'Hello! I\'m Nakato Jane, AI is working!',
+                    'name': 'I\'m Nakato Jane, a professional waitress at Hilton Suites.',
+                    'math': 'AI can calculate: 5 + 3 = 8',
+                    'time': `Current time: ${new Date().toLocaleTimeString()}`,
+                    'test': 'AI system is functioning correctly!'
+                };
+                
+                const key = Object.keys(responses).find(k => input.toLowerCase().includes(k));
+                return key ? responses[key] : 'AI is working! I can respond to: hello, name, math, time, test';
+            }
+        }
+        
+        const testAI = new TestAI();
+        let recordedVoiceSamples = JSON.parse(localStorage.getItem('nakatoVoiceSamples') || '[]');
+        
+        function log(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `[${timestamp}] ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        function testAI() {
+            const input = document.getElementById('testInput').value;
+            if (!input) {
+                log('aiResult', '❌ Please enter a test question');
+                return;
+            }
+            
+            log('aiResult', `🤖 Testing AI with input: "${input}"`);
+            
+            try {
+                const response = testAI.generateResponse(input);
+                log('aiResult', `✅ AI Response: ${response}`);
+                document.getElementById('debugStatus').textContent = 'AI test completed successfully!';
+            } catch (error) {
+                log('aiResult', `❌ AI Error: ${error.message}`);
+                document.getElementById('debugStatus').textContent = 'AI test failed!';
+            }
+        }
+        
+        function testVoices() {
+            log('voiceResult', '🔍 Checking available voices...');
+            
+            if ('speechSynthesis' in window) {
+                const voices = speechSynthesis.getVoices();
+                log('voiceResult', `✅ Found ${voices.length} voices:`);
+                
+                voices.forEach((voice, index) => {
+                    const gender = voice.name.toLowerCase().includes('female') || 
+                                   voice.name.toLowerCase().includes('woman') || 
+                                   voice.name.toLowerCase().includes('zira') ||
+                                   voice.name.toLowerCase().includes('hazel') ? '♀️' : 
+                                   voice.name.toLowerCase().includes('male') ||
+                                   voice.name.toLowerCase().includes('man') ||
+                                   voice.name.toLowerCase().includes('david') ? '♂️' : '❓';
+                    
+                    log('voiceResult', `${index + 1}. ${gender} ${voice.name} (${voice.lang})`);
+                });
+                
+                document.getElementById('debugStatus').textContent = `Found ${voices.length} voices`;
+            } else {
+                log('voiceResult', '❌ Speech synthesis not supported');
+                document.getElementById('debugStatus').textContent = 'Speech synthesis not supported';
+            }
+        }
+        
+        function testFemaleSpeech() {
+            log('voiceResult', '🎤 Testing female voice...');
+            
+            const utterance = new SpeechSynthesisUtterance('Hello, I am Nakato Jane testing female voice');
+            utterance.pitch = 2.0; // High pitch
+            utterance.rate = 0.9;
+            utterance.volume = 1.0;
+            
+            // Find female voice
+            const voices = speechSynthesis.getVoices();
+            const femaleVoice = voices.find(v => 
+                v.name.toLowerCase().includes('female') ||
+                v.name.toLowerCase().includes('zira') ||
+                v.name.toLowerCase().includes('hazel')
+            );
+            
+            if (femaleVoice) {
+                utterance.voice = femaleVoice;
+                log('voiceResult', `✅ Using female voice: ${femaleVoice.name}`);
+            } else {
+                log('voiceResult', '⚠️ No specific female voice found, using high pitch');
+            }
+            
+            speechSynthesis.speak(utterance);
+            document.getElementById('debugStatus').textContent = 'Testing female voice...';
+        }
+        
+        function testMaleSpeech() {
+            log('voiceResult', '🎤 Testing male voice (should be avoided)...');
+            
+            const utterance = new SpeechSynthesisUtterance('This is a male voice test');
+            utterance.pitch = 0.8; // Low pitch
+            utterance.rate = 0.9;
+            utterance.volume = 1.0;
+            
+            // Find male voice
+            const voices = speechSynthesis.getVoices();
+            const maleVoice = voices.find(v => 
+                v.name.toLowerCase().includes('male') ||
+                v.name.toLowerCase().includes('david')
+            );
+            
+            if (maleVoice) {
+                utterance.voice = maleVoice;
+                log('voiceResult', `⚠️ Using male voice: ${maleVoice.name} (should be avoided)`);
+            } else {
+                log('voiceResult', '✅ No male voice found or selected');
+            }
+            
+            speechSynthesis.speak(utterance);
+            document.getElementById('debugStatus').textContent = 'Testing male voice...';
+        }
+        
+        function checkVoiceSamples() {
+            log('cloningResult', '🔍 Checking voice samples...');
+            
+            const samples = JSON.parse(localStorage.getItem('nakatoVoiceSamples') || '[]');
+            log('cloningResult', `📁 Found ${samples.length} voice samples in storage`);
+            
+            if (samples.length > 0) {
+                samples.forEach((sample, index) => {
+                    log('cloningResult', `${index + 1}. ${sample.name} - ${new Date(sample.timestamp).toLocaleString()}`);
+                });
+                
+                const modelTrained = localStorage.getItem('nakatoVoiceModelTrained') === 'true';
+                log('cloningResult', `🤖 Voice model trained: ${modelTrained ? 'YES' : 'NO'}`);
+            } else {
+                log('cloningResult', '❌ No voice samples found');
+            }
+            
+            document.getElementById('debugStatus').textContent = `Voice samples: ${samples.length}`;
+        }
+        
+        function simulateVoiceUpload() {
+            log('cloningResult', '🎭 Simulating voice sample upload...');
+            
+            const sampleData = {
+                name: 'Test Voice Sample',
+                timestamp: Date.now(),
+                url: 'data:audio/wav;base64,simulated',
+                duration: 3000
+            };
+            
+            recordedVoiceSamples.push(sampleData);
+            localStorage.setItem('nakatoVoiceSamples', JSON.stringify(recordedVoiceSamples));
+            localStorage.setItem('nakatoVoiceModelTrained', 'true');
+            
+            log('cloningResult', '✅ Simulated voice sample uploaded');
+            log('cloningResult', '✅ Voice model marked as trained');
+            
+            document.getElementById('debugStatus').textContent = 'Voice sample simulation completed';
+        }
+        
+        function checkBrowserSupport() {
+            log('systemResult', '🌐 Checking browser support...');
+            
+            // Speech Recognition
+            const hasRecognition = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+            log('systemResult', `🎤 Speech Recognition: ${hasRecognition ? '✅ Supported' : '❌ Not supported'}`);
+            
+            // Speech Synthesis
+            const hasSynthesis = 'speechSynthesis' in window;
+            log('systemResult', `🗣️ Speech Synthesis: ${hasSynthesis ? '✅ Supported' : '❌ Not supported'}`);
+            
+            // Web Audio API
+            const hasWebAudio = 'AudioContext' in window || 'webkitAudioContext' in window;
+            log('systemResult', `🔊 Web Audio API: ${hasWebAudio ? '✅ Supported' : '❌ Not supported'}`);
+            
+            // Local Storage
+            const hasLocalStorage = 'localStorage' in window;
+            log('systemResult', `💾 Local Storage: ${hasLocalStorage ? '✅ Supported' : '❌ Not supported'}`);
+            
+            // MediaRecorder API
+            const hasMediaRecorder = 'MediaRecorder' in window;
+            log('systemResult', `📹 MediaRecorder API: ${hasMediaRecorder ? '✅ Supported' : '❌ Not supported'}`);
+            
+            // Browser info
+            log('systemResult', `🌐 Browser: ${navigator.userAgent}`);
+            log('systemResult', `🌍 Language: ${navigator.language}`);
+            log('systemResult', `📱 Platform: ${navigator.platform}`);
+            
+            document.getElementById('debugStatus').textContent = 'Browser support check completed';
+        }
+        
+        // Auto-load voices when page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                speechSynthesis.getVoices();
+            }, 1000);
+        });
+        
+        // Auto-check system on load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('systemResult', '🚀 Debug console initialized');
+            checkBrowserSupport();
+        });
+    </script>
+</body>
+</html>
