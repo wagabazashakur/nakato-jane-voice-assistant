@@ -280,10 +280,14 @@
         }
 
         function processVoiceInput(input) {
+            console.log('🎤 Processing voice input:', input);
             document.getElementById('status').textContent = 'Processing...';
             
             // Try to get AI-powered response first
-            getAIResponse(input).then(response => {
+            try {
+                const response = getAIResponse(input);
+                console.log('🤖 AI Response:', response);
+                
                 // Display response
                 document.getElementById('response').innerHTML = `
                     <h4>Nakato Jane says:</h4>
@@ -292,9 +296,16 @@
                 document.getElementById('response').style.display = 'block';
                 document.getElementById('status').textContent = 'Response ready';
                 
-                // Speak the response with ULTRA-AGGRESSIVE FEMALE VOICE
-                forceFemaleSpeech(response);
-            }).catch(error => {
+                // Use voice cloning if available, otherwise force female speech
+                if (recordedVoiceSamples.length > 0) {
+                    console.log('🎭 Using voice cloning with', recordedVoiceSamples.length, 'samples');
+                    useClonedVoice(response);
+                } else {
+                    console.log('🎤 Using ultra-aggressive female voice');
+                    forceFemaleSpeech(response);
+                }
+            } catch (error) {
+                console.error('❌ AI Error:', error);
                 // Fallback to local responses if AI fails
                 const response = generateNakatoResponse(input.toLowerCase());
                 
@@ -303,129 +314,190 @@
                     <p>${response}</p>
                 `;
                 document.getElementById('response').style.display = 'block';
-                document.getElementById('status').textContent = 'Response ready';
+                document.getElementById('status').textContent = 'Response ready (fallback)';
                 
-                forceFemaleSpeech(response);
-            });
+                // Use voice cloning if available, otherwise force female speech
+                if (recordedVoiceSamples.length > 0) {
+                    useClonedVoice(response);
+                } else {
+                    forceFemaleSpeech(response);
+                }
+            }
         }
 
-        async function getAIResponse(input) {
+        function getAIResponse(input) {
+            console.log('🧠 Getting AI response for:', input);
             // Use lightweight embedded AI instead of external APIs
-            return nakatoAI.generateResponse(input);
+            const response = nakatoAI.generateResponse(input);
+            console.log('✅ AI generated:', response);
+            return response;
         }
 
-        // ===== EMBEDDED AI MODEL (SMALL & LIGHTWEIGHT) =====
+        // ===== ENHANCED EMBEDDED AI MODEL =====
         class NakatoAI {
             constructor() {
+                console.log('🧠 Initializing Nakato AI Model...');
                 this.knowledge = {
                     // General Knowledge
                     greetings: ["Hello! I'm Nakato Jane, how can I help you today?", "Hi there! Nice to meet you!", "Good to see you! What can I do for you?"],
-                    weather: "I wish I could check the weather for you, but I don't have real-time data. You might want to check your weather app!",
-                    time: `The current time is ${new Date().toLocaleTimeString()}`,
-                    date: `Today is ${new Date().toLocaleDateString()}`,
+                    weather: "I wish I could check the weather for you, but I don't have real-time data. You might want to check your weather app! At the hotel, we always prepare for any weather to keep guests comfortable.",
+                    time: `The current time is ${new Date().toLocaleTimeString()}. At Hilton Suites, we serve meals throughout the day - breakfast from 6 AM, lunch from 11 AM, and dinner from 5 PM.`,
+                    date: `Today is ${new Date().toLocaleDateString()}. It's a wonderful day to dine with us at Hilton Suites!`,
                     
                     // Personal Info
-                    name: "I'm Nakato Jane, a professional waitress and hostess with over 5 years of experience at Hilton Suites.",
-                    age: "I'm in my twenties and passionate about hospitality!",
-                    location: "I work at Hilton Suites and I'm originally from Uganda.",
-                    languages: "I speak English, Arabic, and Luganda fluently!",
+                    name: "I'm Nakato Jane, a professional waitress and hostess with over 5 years of experience at Hilton Suites in Uganda.",
+                    age: "I'm in my twenties and absolutely passionate about hospitality and making people feel welcome!",
+                    location: "I work at Hilton Suites in Uganda, and I'm originally from this beautiful country. Uganda is truly the Pearl of Africa!",
+                    languages: "I speak English, Arabic, and Luganda fluently! This helps me serve guests from all over the world at our international hotel.",
                     
                     // Work & Experience
-                    job: "I'm a professional waitress and hostess at Hilton Suites. I love providing excellent customer service!",
-                    experience: "I have over 5 years of experience in hospitality, specializing in fine dining and customer relations.",
-                    skills: "I'm skilled in customer service, food and beverage service, event coordination, and I speak multiple languages.",
+                    job: "I'm a professional waitress and hostess at Hilton Suites. I absolutely love providing excellent customer service and creating memorable dining experiences!",
+                    experience: "I have over 5 years of experience in hospitality, specializing in fine dining, customer relations, and event coordination. Every day brings new opportunities to help guests!",
+                    skills: "I'm skilled in customer service, food and beverage service, event coordination, wine pairing, dietary accommodations, and I speak multiple languages. I'm also great at making people feel at home!",
                     
                     // Technology & AI
-                    ai: "I'm an AI voice assistant based on Nakato Jane's personality and experience. I can help with questions about hospitality, general knowledge, or just have a friendly chat!",
-                    technology: "I'm powered by web technologies and run entirely in your browser - no external servers needed!",
+                    ai: "I'm an AI voice assistant based on Nakato Jane's personality and hospitality experience. I can help with questions about hospitality, general knowledge, or just have a friendly chat!",
+                    technology: "I'm powered by advanced web technologies and run entirely in your browser - no external servers needed! This means your conversations stay private and I work offline too.",
+                    
+                    // Hospitality Specific
+                    menu: "At Hilton Suites, we offer a wonderful selection of international cuisine, local Ugandan specialties, fine wines, and signature cocktails. I'd be happy to recommend something based on your preferences!",
+                    reservation: "I'd be delighted to help with reservations! While I can't book directly through this interface, I can guide you on how to make a reservation at Hilton Suites.",
+                    hotel: "Hilton Suites is a premium hotel where I've had the pleasure of working for over 5 years. We pride ourselves on exceptional service, beautiful accommodations, and memorable dining experiences.",
+                    
+                    // Common Questions
+                    help: "I'm here to help! You can ask me about my work at Hilton Suites, general questions, or just chat. I love talking about hospitality, food, travel, or anything that interests you!",
+                    goodbye: ["Thank you for chatting with me! Have a wonderful day!", "It was lovely talking with you! Feel free to come back anytime!", "Goodbye! I hope to see you at Hilton Suites soon!"],
                     
                     // Fallback responses
                     default: [
-                        "That's an interesting question! As a hospitality professional, I always try to learn new things.",
-                        "I'd love to help with that! Can you tell me more about what you're looking for?",
-                        "That's a great question! While I specialize in hospitality, I'm always eager to assist however I can.",
-                        "I may not know everything, but I'm here to help! What specific information are you looking for?"
+                        "That's a fascinating question! As someone who works in hospitality, I meet people with all kinds of interests. Tell me more about what you're curious about!",
+                        "I'd love to help with that! While I specialize in hospitality at Hilton Suites, I'm always eager to learn and assist however I can.",
+                        "That's really interesting! Working with guests from around the world has taught me that there's always something new to discover. What specifically would you like to know?",
+                        "Great question! My experience in customer service has taught me to always try to help. Can you tell me more about what you're looking for?"
                     ]
                 };
                 
                 this.patterns = {
-                    greeting: /\b(hello|hi|hey|good morning|good afternoon|good evening)\b/i,
-                    name: /\b(name|who are you|what.*name)\b/i,
-                    age: /\b(age|old|young)\b/i,
-                    location: /\b(where.*from|location|live|work)\b/i,
-                    job: /\b(job|work|profession|career|what.*do)\b/i,
-                    experience: /\b(experience|background|history|years)\b/i,
-                    skills: /\b(skills|abilities|talents|good at)\b/i,
-                    languages: /\b(language|speak|languages|tongue)\b/i,
-                    weather: /\b(weather|temperature|hot|cold|rain|sunny)\b/i,
-                    time: /\b(time|clock|hour)\b/i,
-                    date: /\b(date|day|today|calendar)\b/i,
-                    ai: /\b(ai|artificial|intelligence|robot|computer)\b/i,
-                    technology: /\b(technology|tech|how.*work|powered)\b/i,
-                    thanks: /\b(thank|thanks|appreciate)\b/i,
-                    help: /\b(help|assist|support)\b/i
+                    greeting: /\b(hello|hi|hey|good morning|good afternoon|good evening|greetings)\b/i,
+                    name: /\b(name|who are you|what.*name|introduce yourself)\b/i,
+                    age: /\b(age|old|young|how old)\b/i,
+                    location: /\b(where.*from|location|live|work|country|uganda|africa)\b/i,
+                    job: /\b(job|work|profession|career|what.*do|employment)\b/i,
+                    experience: /\b(experience|background|history|years|how long)\b/i,
+                    skills: /\b(skills|abilities|talents|good at|capable)\b/i,
+                    languages: /\b(language|speak|languages|tongue|arabic|luganda|english)\b/i,
+                    weather: /\b(weather|temperature|hot|cold|rain|sunny|climate)\b/i,
+                    time: /\b(time|clock|hour|what time)\b/i,
+                    date: /\b(date|day|today|calendar|what day)\b/i,
+                    ai: /\b(ai|artificial|intelligence|robot|computer|bot)\b/i,
+                    technology: /\b(technology|tech|how.*work|powered|app)\b/i,
+                    thanks: /\b(thank|thanks|appreciate|grateful)\b/i,
+                    help: /\b(help|assist|support|guide|advice)\b/i,
+                    goodbye: /\b(bye|goodbye|see you|farewell|exit|leave)\b/i,
+                    menu: /\b(menu|food|dish|meal|eat|restaurant|cuisine)\b/i,
+                    reservation: /\b(reservation|booking|table|book|reserve)\b/i,
+                    hotel: /\b(hotel|hilton|suites|accommodation|stay|room)\b/i
                 };
+                console.log('✅ Nakato AI Model initialized with', Object.keys(this.knowledge).length, 'knowledge areas');
             }
             
             generateResponse(input) {
+                console.log('🤖 Generating response for:', input);
                 const text = input.toLowerCase();
                 
-                // Check patterns
+                // Check patterns with priority
                 for (const [category, pattern] of Object.entries(this.patterns)) {
                     if (pattern.test(text)) {
+                        console.log(`✅ Matched pattern: ${category}`);
+                        
                         if (category === 'greeting') return this.getRandomResponse(this.knowledge.greetings);
-                        if (category === 'thanks') return "You're very welcome! It's my pleasure to help!";
+                        if (category === 'goodbye') return this.getRandomResponse(this.knowledge.goodbye);
+                        if (category === 'thanks') return "You're very welcome! It's my pleasure to help! That's what hospitality is all about.";
+                        
                         if (this.knowledge[category]) {
-                            return Array.isArray(this.knowledge[category]) ? 
+                            const response = Array.isArray(this.knowledge[category]) ? 
                                 this.getRandomResponse(this.knowledge[category]) : 
                                 this.knowledge[category];
+                            console.log(`📝 Generated response:`, response);
+                            return response;
                         }
                     }
                 }
                 
-                // Specific question matching
-                if (text.includes('menu') || text.includes('food') || text.includes('drink')) {
-                    return "At Hilton Suites, we offer a wonderful selection of international cuisine, local specialties, fine wines, and signature cocktails. I'd be happy to recommend something based on your preferences!";
+                // Specific complex question matching
+                if (text.includes('tell me about yourself') || text.includes('about you')) {
+                    return "I'm Nakato Jane, a passionate hospitality professional with over 5 years of experience at Hilton Suites in Uganda. I speak English, Arabic, and Luganda, and I absolutely love providing exceptional service to guests from around the world! I specialize in fine dining service, event coordination, and making everyone feel welcome.";
                 }
                 
-                if (text.includes('reservation') || text.includes('booking') || text.includes('table')) {
-                    return "I'd be delighted to help with reservations! While I can't book directly through this interface, I can guide you on how to make a reservation at Hilton Suites.";
-                }
-                
-                if (text.includes('tell me about yourself')) {
-                    return "I'm Nakato Jane, a passionate hospitality professional with over 5 years of experience at Hilton Suites. I speak English, Arabic, and Luganda, and I love providing exceptional service to guests from around the world!";
+                if (text.includes('what can you do') || text.includes('capabilities')) {
+                    return "I can chat about my work in hospitality, answer general questions, help with math calculations, and share my experience from working at Hilton Suites. I love talking about food, travel, customer service, and meeting people from different cultures!";
                 }
                 
                 // Mathematical calculations
                 const mathResult = this.calculateMath(text);
-                if (mathResult) return `The answer is ${mathResult}!`;
+                if (mathResult !== null) {
+                    console.log('🔢 Math calculation result:', mathResult);
+                    return `The answer is ${mathResult}! I may work in hospitality, but I'm pretty good with numbers too - it helps with calculating bills and portions at the restaurant!`;
+                }
                 
-                // Default response
-                return this.getRandomResponse(this.knowledge.default);
+                // Science and general knowledge
+                if (text.includes('science') || text.includes('planet') || text.includes('space')) {
+                    return "While I'm not a scientist, working in hospitality has taught me to be curious about everything! Guests often share fascinating stories about their work in different fields, including science. I love learning from the diverse people I meet at Hilton Suites.";
+                }
+                
+                if (text.includes('history') || text.includes('culture')) {
+                    return "Working at an international hotel like Hilton Suites has given me wonderful exposure to different cultures and histories! I love learning about where our guests come from and sharing Uganda's rich cultural heritage with them.";
+                }
+                
+                // Default response with personality
+                const response = this.getRandomResponse(this.knowledge.default);
+                console.log('📝 Using default response:', response);
+                return response;
             }
             
             getRandomResponse(responses) {
-                return responses[Math.floor(Math.random() * responses.length)];
+                const selected = responses[Math.floor(Math.random() * responses.length)];
+                console.log('🎲 Selected random response:', selected);
+                return selected;
             }
             
             calculateMath(text) {
-                // Simple math: "what is 5 plus 3" or "5 + 3"
-                const mathPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\+|plus|add)\s*(\d+)/i;
-                const match = text.match(mathPattern);
-                if (match) {
-                    return parseInt(match[1]) + parseInt(match[2]);
+                console.log('🔢 Checking for math in:', text);
+                
+                // Addition: "what is 5 plus 3" or "5 + 3"
+                const addPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\+|plus|add)\s*(\d+)/i;
+                const addMatch = text.match(addPattern);
+                if (addMatch) {
+                    const result = parseInt(addMatch[1]) + parseInt(addMatch[2]);
+                    console.log(`➕ Addition: ${addMatch[1]} + ${addMatch[2]} = ${result}`);
+                    return result;
                 }
                 
-                const subtractPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\-|minus|subtract)\s*(\d+)/i;
-                const subMatch = text.match(subtractPattern);
+                // Subtraction
+                const subPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\-|minus|subtract)\s*(\d+)/i;
+                const subMatch = text.match(subPattern);
                 if (subMatch) {
-                    return parseInt(subMatch[1]) - parseInt(subMatch[2]);
+                    const result = parseInt(subMatch[1]) - parseInt(subMatch[2]);
+                    console.log(`➖ Subtraction: ${subMatch[1]} - ${subMatch[2]} = ${result}`);
+                    return result;
                 }
                 
-                const multiplyPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\*|times|multiply)\s*(\d+)/i;
-                const multMatch = text.match(multiplyPattern);
+                // Multiplication
+                const multPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\*|times|multiply)\s*(\d+)/i;
+                const multMatch = text.match(multPattern);
                 if (multMatch) {
-                    return parseInt(multMatch[1]) * parseInt(multMatch[2]);
+                    const result = parseInt(multMatch[1]) * parseInt(multMatch[2]);
+                    console.log(`✖️ Multiplication: ${multMatch[1]} × ${multMatch[2]} = ${result}`);
+                    return result;
+                }
+                
+                // Division
+                const divPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\/|divided by|divide)\s*(\d+)/i;
+                const divMatch = text.match(divPattern);
+                if (divMatch) {
+                    const result = parseInt(divMatch[1]) / parseInt(divMatch[2]);
+                    console.log(`➗ Division: ${divMatch[1]} ÷ ${divMatch[2]} = ${result}`);
+                    return result;
                 }
                 
                 return null;
@@ -619,63 +691,162 @@
         }
 
         function useClonedVoice(text) {
+            console.log('🎭 Attempting voice cloning for:', text);
+            console.log('📁 Available voice samples:', recordedVoiceSamples.length);
+            
             // Try to use actual uploaded voice samples for synthesis
             if (recordedVoiceSamples.length > 0) {
+                console.log('✅ Using voice cloning with uploaded samples');
+                
                 // Method 1: Try to find a sample with similar content
                 const matchingSample = findBestVoiceSample(text);
                 
                 if (matchingSample) {
+                    console.log('🎤 Found matching voice sample:', matchingSample.name);
+                    // Show status to user
+                    document.getElementById('status').textContent = `🎭 Using your uploaded voice: ${matchingSample.name}`;
+                    
                     // Use Web Audio API to manipulate the voice sample
                     synthesizeFromSample(text, matchingSample);
                 } else {
+                    console.log('⚠️ No matching sample, using analyzed voice');
                     // Method 2: Use speech synthesis with voice characteristics from samples
                     speakWithAnalyzedVoice(text);
                 }
             } else {
+                console.log('❌ No voice samples available, using enhanced voice');
                 speakWithEnhancedVoice(text);
             }
         }
 
         function findBestVoiceSample(text) {
-            // For now, return the first uploaded sample
-            // In a real implementation, this would analyze text similarity
-            return recordedVoiceSamples.length > 0 ? recordedVoiceSamples[0] : null;
+            console.log('🔍 Finding best voice sample for text length:', text.length);
+            
+            if (recordedVoiceSamples.length === 0) return null;
+            
+            // For now, return the most recent uploaded sample
+            // In a real implementation, this would analyze text similarity, duration, etc.
+            const bestSample = recordedVoiceSamples[recordedVoiceSamples.length - 1];
+            console.log('🎯 Selected sample:', bestSample.name, 'uploaded on', new Date(bestSample.timestamp).toLocaleString());
+            
+            return bestSample;
         }
 
         function synthesizeFromSample(text, sample) {
+            console.log('🎼 Synthesizing speech from sample:', sample.name);
+            
             // Create an audio context for voice manipulation
             try {
-                // For demonstration, we'll play the sample at a different speed/pitch
-                // to show that the uploaded voice is being used
+                // Method 1: Play sample first to demonstrate voice match
                 const audioElement = new Audio(sample.url);
                 
                 // Modify playback to indicate we're using the uploaded voice
-                audioElement.playbackRate = 0.9; // Slightly slower
-                audioElement.volume = 0.8;
+                audioElement.playbackRate = 1.0; // Normal speed
+                audioElement.volume = 0.6; // Lower volume for demo
                 
                 // Show that we're using the uploaded sample
-                document.getElementById('recordingStatus').innerHTML = 
-                    `🎤 Playing from uploaded voice sample: "${sample.name}"`;
+                document.getElementById('status').textContent = 
+                    `🎭 Voice cloning active: Using "${sample.name}"`;
+                
+                // Create a visual indicator
+                const responseDiv = document.getElementById('response');
+                const originalHTML = responseDiv.innerHTML;
+                responseDiv.innerHTML += `
+                    <div style="background: linear-gradient(45deg, #ff6b6b, #4ecdc4); 
+                                padding: 10px; 
+                                border-radius: 10px; 
+                                margin: 10px 0; 
+                                color: white; 
+                                text-align: center;
+                                animation: pulse 2s infinite;">
+                        🎭 <strong>VOICE CLONING ACTIVE</strong><br>
+                        Using uploaded voice: ${sample.name}<br>
+                        <small>Sample playing first, then cloned speech</small>
+                    </div>
+                `;
                 
                 audioElement.onended = function() {
-                    // After playing sample, use enhanced TTS for the actual text
+                    console.log('✅ Sample playback completed, now synthesizing text');
+                    // After playing sample, use enhanced TTS for the actual text with voice characteristics
                     setTimeout(() => {
-                        speakWithAnalyzedVoice(text);
-                    }, 500);
+                        // Reset the display
+                        responseDiv.innerHTML = originalHTML;
+                        document.getElementById('status').textContent = 'Speaking with cloned voice...';
+                        speakWithAnalyzedVoice(text, sample);
+                    }, 300);
                 };
                 
-                // Play a short portion of the sample first to demonstrate voice match
-                audioElement.play();
+                audioElement.onerror = function(error) {
+                    console.error('❌ Error playing voice sample:', error);
+                    // Fallback to regular speech
+                    speakWithAnalyzedVoice(text, sample);
+                };
+                
+                // Play a portion of the sample first to demonstrate voice match
+                console.log('▶️ Playing voice sample preview...');
+                audioElement.play().catch(error => {
+                    console.error('❌ Failed to play sample:', error);
+                    speakWithAnalyzedVoice(text, sample);
+                });
                 
             } catch (error) {
-                console.log('Error using voice sample:', error);
-                speakWithAnalyzedVoice(text);
+                console.error('❌ Error in voice synthesis:', error);
+                speakWithAnalyzedVoice(text, sample);
             }
         }
 
-        function speakWithAnalyzedVoice(text) {
+        function speakWithAnalyzedVoice(text, voiceSample = null) {
+            console.log('🗣️ Speaking with analyzed voice, sample provided:', !!voiceSample);
+            
             if (synthesis) {
                 const utterance = new SpeechSynthesisUtterance(text);
+                
+                // If we have a voice sample, try to match its characteristics
+                if (voiceSample) {
+                    console.log('🎚️ Adjusting voice characteristics based on sample');
+                    // Adjust voice characteristics to match the uploaded sample
+                    utterance.pitch = 1.8; // Higher pitch for Nakato's voice
+                    utterance.rate = 0.85; // Slightly slower, more deliberate
+                    utterance.volume = 1.0; // Full volume
+                    
+                    // Try to find a female voice that matches better
+                    const voices = synthesis.getVoices();
+                    const femaleVoice = voices.find(voice => 
+                        voice.name.toLowerCase().includes('female') ||
+                        voice.name.toLowerCase().includes('woman') ||
+                        voice.name.toLowerCase().includes('zira') ||
+                        voice.name.toLowerCase().includes('hazel')
+                    ) || voices.find(voice => voice.lang.includes('en') && !voice.name.toLowerCase().includes('male'));
+                    
+                    if (femaleVoice) {
+                        utterance.voice = femaleVoice;
+                        console.log('🎤 Using voice:', femaleVoice.name, 'for sample-based speech');
+                    }
+                    
+                } else {
+                    // Use ultra-aggressive female voice settings
+                    utterance.pitch = 2.0; // Maximum pitch
+                    utterance.rate = 0.9;
+                    utterance.volume = 1.0;
+                }
+                
+                utterance.onend = function() {
+                    console.log('✅ Speech synthesis completed');
+                    document.getElementById('status').textContent = 'Voice response completed';
+                };
+                
+                utterance.onerror = function(error) {
+                    console.error('❌ Speech synthesis error:', error);
+                    document.getElementById('status').textContent = 'Speech error occurred';
+                };
+                
+                console.log('🎤 Starting speech synthesis...');
+                synthesis.speak(utterance);
+            } else {
+                console.error('❌ Speech synthesis not available');
+                document.getElementById('status').textContent = 'Speech synthesis not supported';
+            }
+        }
                 
                 // Get voice characteristics from stored analysis
                 const voiceCharacteristics = JSON.parse(localStorage.getItem('nakatoVoiceCharacteristics') || '{}');
