@@ -129,11 +129,26 @@
         
         <div class="status" id="status">Tap microphone to speak</div>
         
+        <!-- Microphone Volume Indicator -->
+        <div style="text-align: center; margin: 10px 0;">
+            <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; display: inline-block;">
+                🎤 <strong>Microphone Level:</strong> 
+                <div id="micLevel" style="width: 200px; height: 10px; background: #333; border-radius: 5px; display: inline-block; margin-left: 10px; position: relative;">
+                    <div id="micBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #4CAF50, #FFC107, #FF5722); border-radius: 5px; transition: width 0.1s;"></div>
+                </div>
+                <span id="micStatus" style="margin-left: 10px;">Silent</span>
+            </div>
+        </div>
+        
         <!-- Microphone Test Button -->
         <div style="text-align: center; margin: 10px 0;">
             <button style="background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 15px; cursor: pointer;" 
                     onclick="testMicrophone()">
                 🔧 Test Microphone
+            </button>
+            <button style="background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 15px; cursor: pointer; margin-left: 10px;" 
+                    onclick="testMicrophoneVolume()">
+                📊 Test Volume
             </button>
         </div>
         
@@ -232,23 +247,49 @@
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = true;
+                
+                // Enhanced settings for better microphone sensitivity
+                recognition.continuous = true;          // Keep listening longer
+                recognition.interimResults = true;      // Show interim results
+                recognition.maxAlternatives = 3;        // Multiple alternatives
                 recognition.lang = 'en-US';
+                
+                // Add timeout handling
+                let speechTimeout;
+                let hasReceivedSpeech = false;
 
                 recognition.onstart = function() {
                     console.log('✅ Speech recognition started');
-                    document.getElementById('status').textContent = '🎤 Listening... Speak now!';
+                    hasReceivedSpeech = false;
+                    document.getElementById('status').textContent = '🎤 Listening... Speak now! (Say "Hello" or any question)';
+                    
+                    // Set a longer timeout for speech detection
+                    speechTimeout = setTimeout(() => {
+                        if (!hasReceivedSpeech) {
+                            console.log('⏰ No speech detected in 10 seconds, stopping...');
+                            document.getElementById('status').textContent = '⏰ No speech detected. Try speaking louder or closer to microphone.';
+                            recognition.stop();
+                        }
+                    }, 10000); // 10 second timeout
                 };
 
                 recognition.onresult = function(event) {
                     console.log('🎯 Speech recognition result received');
+                    hasReceivedSpeech = true;
+                    clearTimeout(speechTimeout);
+                    
                     let transcript = '';
+                    let confidence = 0;
+                    
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         transcript += event.results[i][0].transcript;
+                        confidence = event.results[i][0].confidence;
                     }
                     
-                    console.log('📝 Transcript:', transcript);
+                    console.log('📝 Transcript:', transcript, 'Confidence:', confidence);
+                    
+                    // Show interim results immediately
+                    document.getElementById('status').textContent = `🎤 Hearing: "${transcript}" (${Math.round(confidence * 100)}% confident)`;
                     
                     if (event.results[event.results.length - 1].isFinal) {
                         console.log('✅ Final transcript:', transcript);
@@ -258,12 +299,33 @@
 
                 recognition.onerror = function(event) {
                     console.error('❌ Speech recognition error:', event.error);
-                    document.getElementById('status').textContent = 'Error: ' + event.error + ' - Try again!';
+                    clearTimeout(speechTimeout);
+                    
+                    let errorMessage = '';
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMessage = 'No speech detected. Try speaking louder or check microphone.';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = 'Microphone not working. Check microphone connection.';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = 'Microphone permission denied. Please allow microphone access.';
+                            break;
+                        case 'network':
+                            errorMessage = 'Network error. Check internet connection.';
+                            break;
+                        default:
+                            errorMessage = `Error: ${event.error}. Try refreshing the page.`;
+                    }
+                    
+                    document.getElementById('status').textContent = '❌ ' + errorMessage;
                     stopListening();
                 };
 
                 recognition.onend = function() {
                     console.log('🔚 Speech recognition ended');
+                    clearTimeout(speechTimeout);
                     stopListening();
                 };
                 
@@ -371,6 +433,78 @@
                 .catch(function(error) {
                     console.error('❌ Microphone test failed:', error);
                     document.getElementById('status').textContent = '❌ Microphone access denied. Please allow microphone permission and try again.';
+                });
+        }
+        
+        // Test microphone volume levels
+        function testMicrophoneVolume() {
+            console.log('📊 Testing microphone volume...');
+            document.getElementById('status').textContent = '📊 Testing microphone volume - speak normally...';
+            
+            navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                } 
+            })
+                .then(function(stream) {
+                    console.log('✅ Audio stream obtained for volume testing');
+                    
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const analyser = audioContext.createAnalyser();
+                    const microphone = audioContext.createMediaStreamSource(stream);
+                    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    
+                    microphone.connect(analyser);
+                    analyser.fftSize = 256;
+                    
+                    let isMonitoring = true;
+                    
+                    function updateMicLevel() {
+                        if (!isMonitoring) return;
+                        
+                        analyser.getByteFrequencyData(dataArray);
+                        let sum = 0;
+                        for (let i = 0; i < dataArray.length; i++) {
+                            sum += dataArray[i];
+                        }
+                        const average = sum / dataArray.length;
+                        const percentage = Math.min(100, (average / 128) * 100);
+                        
+                        // Update visual indicator
+                        document.getElementById('micBar').style.width = percentage + '%';
+                        
+                        let status = 'Silent';
+                        if (percentage > 50) status = 'LOUD 🔊';
+                        else if (percentage > 25) status = 'Good 🎤';
+                        else if (percentage > 10) status = 'Quiet 🔉';
+                        else if (percentage > 2) status = 'Very Quiet 🔇';
+                        
+                        document.getElementById('micStatus').textContent = `${status} (${Math.round(percentage)}%)`;
+                        
+                        console.log(`🎚️ Mic level: ${Math.round(percentage)}%`);
+                        
+                        requestAnimationFrame(updateMicLevel);
+                    }
+                    
+                    updateMicLevel();
+                    
+                    // Stop monitoring after 10 seconds
+                    setTimeout(() => {
+                        isMonitoring = false;
+                        stream.getTracks().forEach(track => track.stop());
+                        audioContext.close();
+                        document.getElementById('micBar').style.width = '0%';
+                        document.getElementById('micStatus').textContent = 'Test completed';
+                        document.getElementById('status').textContent = '✅ Volume test completed. If you saw levels above 25%, try voice recognition again.';
+                        console.log('📊 Volume test completed');
+                    }, 10000);
+                    
+                })
+                .catch(function(error) {
+                    console.error('❌ Volume test failed:', error);
+                    document.getElementById('status').textContent = '❌ Volume test failed: ' + error.message;
                 });
         }
 
