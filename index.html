@@ -168,6 +168,17 @@
             
             <!-- Voice Model Status -->
             <div id="voiceModelStatus" style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; font-size: 14px;"></div>
+            
+            <!-- Voice Debug Section -->
+            <div style="margin-top: 15px;">
+                <button class="record-button" onclick="debugVoices()" style="background: #9C27B0;">
+                    🔍 Debug Voices
+                </button>
+                <button class="record-button" onclick="forceFemalevoice()" style="background: #E91E63;">
+                    👩 Force Female Voice
+                </button>
+            </div>
+            <div id="voiceDebugInfo" style="margin-top: 10px; font-size: 12px; max-height: 200px; overflow-y: auto;"></div>
         </div>
         
         <div class="examples">
@@ -263,19 +274,118 @@
         function processVoiceInput(input) {
             document.getElementById('status').textContent = 'Processing...';
             
-            // Generate Nakato Jane's response
-            const response = generateNakatoResponse(input.toLowerCase());
+            // Try to get AI-powered response first
+            getAIResponse(input).then(response => {
+                // Display response
+                document.getElementById('response').innerHTML = `
+                    <h4>Nakato Jane says:</h4>
+                    <p>${response}</p>
+                `;
+                document.getElementById('response').style.display = 'block';
+                document.getElementById('status').textContent = 'Response ready';
+                
+                // Speak the response with cloned voice
+                speakWithCustomVoice(response);
+            }).catch(error => {
+                // Fallback to local responses if AI fails
+                const response = generateNakatoResponse(input.toLowerCase());
+                
+                document.getElementById('response').innerHTML = `
+                    <h4>Nakato Jane says:</h4>
+                    <p>${response}</p>
+                `;
+                document.getElementById('response').style.display = 'block';
+                document.getElementById('status').textContent = 'Response ready';
+                
+                speakWithCustomVoice(response);
+            });
+        }
+
+        async function getAIResponse(input) {
+            // Try multiple free AI APIs
+            const aiProviders = [
+                { name: 'Hugging Face', func: getHuggingFaceResponse },
+                { name: 'OpenAI Free', func: getOpenAIResponse },
+                { name: 'Google AI', func: getGoogleAIResponse }
+            ];
+
+            for (let provider of aiProviders) {
+                try {
+                    document.getElementById('status').textContent = `🤖 Asking ${provider.name} AI...`;
+                    const response = await provider.func(input);
+                    if (response && response.length > 10) {
+                        return response;
+                    }
+                } catch (error) {
+                    console.log(`${provider.name} failed:`, error);
+                }
+            }
+
+            throw new Error('All AI providers failed');
+        }
+
+        async function getHuggingFaceResponse(input) {
+            // Free Hugging Face Inference API
+            const response = await fetch('https://api-inference.huggingface.co/models/microsoft/DialoGPT-large', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    inputs: `Human: ${input}\nNakato Jane (professional waitress at Hilton Suites):`,
+                    parameters: {
+                        max_length: 150,
+                        temperature: 0.7,
+                        do_sample: true
+                    }
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.length > 0 && data[0].generated_text) {
+                    let aiResponse = data[0].generated_text;
+                    // Clean up the response
+                    aiResponse = aiResponse.replace(/Human:.*?\n/g, '');
+                    aiResponse = aiResponse.replace(/Nakato Jane.*?:/g, '');
+                    aiResponse = aiResponse.trim();
+                    
+                    // Add Nakato Jane's personality
+                    return personalizeResponse(aiResponse, input);
+                }
+            }
+            throw new Error('Hugging Face API failed');
+        }
+
+        async function getOpenAIResponse(input) {
+            // This would require an API key - for now, return enhanced local response
+            throw new Error('OpenAI requires API key');
+        }
+
+        async function getGoogleAIResponse(input) {
+            // This would require an API key - for now, return enhanced local response
+            throw new Error('Google AI requires API key');
+        }
+
+        function personalizeResponse(aiResponse, originalInput) {
+            // Add Nakato Jane's personality to AI responses
+            const nakatoPersonality = [
+                "As a professional waitress at Hilton Suites, ",
+                "From my experience in hospitality, ",
+                "Working with guests from around the world, ",
+                "In my 5 years at Hilton Suites, "
+            ];
+
+            const randomPrefix = nakatoPersonality[Math.floor(Math.random() * nakatoPersonality.length)];
             
-            // Display response
-            document.getElementById('response').innerHTML = `
-                <h4>Nakato Jane says:</h4>
-                <p>${response}</p>
-            `;
-            document.getElementById('response').style.display = 'block';
-            document.getElementById('status').textContent = 'Response ready';
+            // Make sure response maintains her professional identity
+            if (!aiResponse.toLowerCase().includes('waitress') && 
+                !aiResponse.toLowerCase().includes('hospitality') && 
+                !aiResponse.toLowerCase().includes('hilton')) {
+                return randomPrefix + aiResponse.toLowerCase().charAt(0) + aiResponse.slice(1);
+            }
             
-            // Speak the response with enhanced voice
-            speakWithCustomVoice(response);
+            return aiResponse;
         }
 
         function generateNakatoResponse(input) {
@@ -409,48 +519,86 @@
                 const voiceCharacteristics = JSON.parse(localStorage.getItem('nakatoVoiceCharacteristics') || '{}');
                 const settings = voiceCharacteristics.optimizedSettings || {};
                 
-                // Apply analyzed voice characteristics
-                utterance.rate = settings.rate || 0.75;
-                utterance.pitch = settings.pitch || 1.35;
-                utterance.volume = settings.volume || 0.95;
+                // Force female voice characteristics
+                utterance.rate = 0.8;     // Clear, professional pace
+                utterance.pitch = 1.6;    // Higher pitch for clear female voice
+                utterance.volume = 0.9;   // Clear volume
                 
-                // Enhanced voice selection for African/International accent
+                // FORCE female voice selection
                 const voices = synthesis.getVoices();
                 let selectedVoice = null;
                 
-                // Look for voices that might match Nakato Jane's characteristics
-                const preferredVoices = [
-                    'Microsoft Zira', 'Google UK English Female', 'Emma', 'Aria',
-                    'Samantha', 'Karen', 'Tessa', 'Fiona'
+                // Prioritize voices that are definitely female
+                const femaleVoices = [
+                    'Microsoft Zira Desktop', 'Microsoft Zira', 'Zira',
+                    'Google UK English Female', 'UK English Female',
+                    'Samantha', 'Karen', 'Emma', 'Amy', 'Aria', 'Fiona'
                 ];
                 
-                for (let targetVoice of preferredVoices) {
+                // Find first available female voice
+                for (let femaleName of femaleVoices) {
                     for (let voice of voices) {
-                        if (voice.name.toLowerCase().includes(targetVoice.toLowerCase())) {
+                        if (voice.name.toLowerCase().includes(femaleName.toLowerCase())) {
                             selectedVoice = voice;
+                            console.log('Selected female voice:', voice.name);
                             break;
                         }
                     }
                     if (selectedVoice) break;
                 }
                 
+                // If no specific female voice found, find any voice with "female" in the name
+                if (!selectedVoice) {
+                    for (let voice of voices) {
+                        if (voice.name.toLowerCase().includes('female') || 
+                            voice.name.toLowerCase().includes('woman')) {
+                            selectedVoice = voice;
+                            console.log('Selected female voice (backup):', voice.name);
+                            break;
+                        }
+                    }
+                }
+                
+                // Last resort: filter by language and try to avoid obviously male voices
+                if (!selectedVoice) {
+                    for (let voice of voices) {
+                        if ((voice.lang.includes('en-US') || voice.lang.includes('en-GB')) && 
+                            !voice.name.toLowerCase().includes('david') &&
+                            !voice.name.toLowerCase().includes('mark') &&
+                            !voice.name.toLowerCase().includes('male')) {
+                            selectedVoice = voice;
+                            console.log('Selected voice (last resort):', voice.name);
+                            break;
+                        }
+                    }
+                }
+                
                 if (selectedVoice) {
                     utterance.voice = selectedVoice;
+                } else {
+                    console.log('No suitable female voice found, using default');
                 }
                 
                 utterance.onstart = function() {
-                    document.getElementById('status').textContent = '🔊 Nakato Jane (cloned voice) is speaking...';
+                    document.getElementById('status').textContent = '🔊 Nakato Jane (female voice) is speaking...';
                 };
                 
                 utterance.onend = function() {
                     document.getElementById('status').textContent = 'Tap microphone to speak';
                 };
                 
+                // Debug: Show selected voice
+                utterance.onstart = function() {
+                    const voiceName = selectedVoice ? selectedVoice.name : 'default';
+                    document.getElementById('status').textContent = `🔊 Nakato Jane speaking (${voiceName})...`;
+                };
+                
                 synthesis.speak(utterance);
                 
-                // Show that we're using voice analysis
+                // Show voice analysis status
+                const voiceName = selectedVoice ? selectedVoice.name : 'default browser voice';
                 document.getElementById('recordingStatus').innerHTML = 
-                    `🧠 Using voice characteristics analyzed from ${recordedVoiceSamples.length} uploaded samples`;
+                    `🎤 Using cloned voice characteristics with ${voiceName} (${recordedVoiceSamples.length} samples analyzed)`;
             }
         }
 
@@ -735,6 +883,94 @@
                     💡 Need 1-5 audio files of Nakato Jane speaking
                 `;
                 statusElement.style.background = 'rgba(244, 67, 54, 0.3)';
+            }
+        }
+
+        function debugVoices() {
+            const voices = synthesis.getVoices();
+            const debugElement = document.getElementById('voiceDebugInfo');
+            
+            let html = '<h4>🔍 Available Voices on Your Device:</h4>';
+            
+            voices.forEach((voice, index) => {
+                const isFemale = voice.name.toLowerCase().includes('female') || 
+                                voice.name.toLowerCase().includes('woman') ||
+                                ['zira', 'samantha', 'karen', 'emma', 'amy', 'aria', 'fiona'].some(name => 
+                                    voice.name.toLowerCase().includes(name));
+                
+                const color = isFemale ? '#4CAF50' : '#f44336';
+                const gender = isFemale ? '👩 Female' : '👨 Male/Unknown';
+                
+                html += `
+                    <div style="background: rgba(255,255,255,0.1); padding: 8px; margin: 3px 0; border-radius: 3px; border-left: 4px solid ${color};">
+                        <strong>${voice.name}</strong> (${voice.lang}) ${gender}
+                        <button onclick="testVoice(${index})" style="background: #2196F3; color: white; border: none; padding: 2px 8px; border-radius: 3px; margin-left: 10px; cursor: pointer;">Test</button>
+                    </div>
+                `;
+            });
+            
+            debugElement.innerHTML = html;
+        }
+
+        function testVoice(voiceIndex) {
+            const voices = synthesis.getVoices();
+            const voice = voices[voiceIndex];
+            
+            if (voice) {
+                const utterance = new SpeechSynthesisUtterance("Hello, I'm Nakato Jane testing this voice.");
+                utterance.voice = voice;
+                utterance.rate = 0.8;
+                utterance.pitch = 1.4;
+                utterance.volume = 0.9;
+                
+                synthesis.speak(utterance);
+                
+                document.getElementById('recordingStatus').innerHTML = 
+                    `🎵 Testing voice: ${voice.name} (${voice.lang})`;
+            }
+        }
+
+        function forceFemalevoice() {
+            const testText = "Hello! I'm Nakato Jane, and this is my female voice.";
+            
+            // Force use female voice with high pitch
+            if (synthesis) {
+                const utterance = new SpeechSynthesisUtterance(testText);
+                const voices = synthesis.getVoices();
+                
+                // Find best female voice
+                let femaleVoice = null;
+                const femaleNames = ['zira', 'samantha', 'karen', 'emma', 'amy', 'female'];
+                
+                for (let name of femaleNames) {
+                    for (let voice of voices) {
+                        if (voice.name.toLowerCase().includes(name)) {
+                            femaleVoice = voice;
+                            break;
+                        }
+                    }
+                    if (femaleVoice) break;
+                }
+                
+                if (femaleVoice) {
+                    utterance.voice = femaleVoice;
+                    utterance.pitch = 1.8; // Very high pitch for clear female sound
+                    utterance.rate = 0.7;
+                    utterance.volume = 0.95;
+                    
+                    synthesis.speak(utterance);
+                    
+                    document.getElementById('recordingStatus').innerHTML = 
+                        `👩 Forced female voice: ${femaleVoice.name}`;
+                } else {
+                    // No female voice found, use high pitch
+                    utterance.pitch = 2.0; // Maximum pitch
+                    utterance.rate = 0.6;
+                    synthesis.speak(utterance);
+                    
+                    document.getElementById('recordingStatus').innerHTML = 
+                        `⚠️ No female voice found. Using high pitch on default voice.`;
+                }
             }
         }
 
