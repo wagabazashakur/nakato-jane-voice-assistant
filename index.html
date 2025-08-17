@@ -129,6 +129,14 @@
         
         <div class="status" id="status">Tap microphone to speak</div>
         
+        <!-- Microphone Test Button -->
+        <div style="text-align: center; margin: 10px 0;">
+            <button style="background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 15px; cursor: pointer;" 
+                    onclick="testMicrophone()">
+                🔧 Test Microphone
+            </button>
+        </div>
+        
         <div class="response" id="response"></div>
         
         <!-- AI Model Status -->
@@ -210,48 +218,66 @@
 
     <script>
         let isListening = false;
-        let recognition;
         let synthesis = window.speechSynthesis;
         let mediaRecorder;
         let audioChunks = [];
         let recordedVoiceSamples = JSON.parse(localStorage.getItem('nakatoVoiceSamples')) || [];
 
         // Initialize speech recognition
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
+        let recognition = null;
+        
+        function initializeSpeechRecognition() {
+            console.log('🎤 Initializing speech recognition...');
+            
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
 
-            recognition.onstart = function() {
-                document.getElementById('status').textContent = '🎤 Listening... Speak now!';
-            };
+                recognition.onstart = function() {
+                    console.log('✅ Speech recognition started');
+                    document.getElementById('status').textContent = '🎤 Listening... Speak now!';
+                };
 
-            recognition.onresult = function(event) {
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
-                }
+                recognition.onresult = function(event) {
+                    console.log('🎯 Speech recognition result received');
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                    
+                    console.log('📝 Transcript:', transcript);
+                    
+                    if (event.results[event.results.length - 1].isFinal) {
+                        console.log('✅ Final transcript:', transcript);
+                        processVoiceInput(transcript);
+                    }
+                };
+
+                recognition.onerror = function(event) {
+                    console.error('❌ Speech recognition error:', event.error);
+                    document.getElementById('status').textContent = 'Error: ' + event.error + ' - Try again!';
+                    stopListening();
+                };
+
+                recognition.onend = function() {
+                    console.log('🔚 Speech recognition ended');
+                    stopListening();
+                };
                 
-                if (event.results[event.results.length - 1].isFinal) {
-                    processVoiceInput(transcript);
-                }
-            };
-
-            recognition.onerror = function(event) {
-                document.getElementById('status').textContent = 'Error: ' + event.error;
-                stopListening();
-            };
-
-            recognition.onend = function() {
-                stopListening();
-            };
-        } else {
-            document.getElementById('status').textContent = 'Speech recognition not supported in this browser';
+                console.log('✅ Speech recognition initialized successfully');
+                document.getElementById('status').textContent = 'Tap microphone to speak';
+            } else {
+                console.error('❌ Speech recognition not supported');
+                document.getElementById('status').textContent = 'Speech recognition not supported in this browser';
+            }
         }
 
         function toggleListening() {
+            console.log('🔄 Toggle listening called, current state:', isListening);
+            
             if (!isListening) {
                 startListening();
             } else {
@@ -260,23 +286,92 @@
         }
 
         function startListening() {
-            if (recognition) {
-                isListening = true;
-                document.getElementById('micButton').classList.add('listening');
-                document.getElementById('micButton').textContent = '🔴';
-                document.getElementById('response').style.display = 'none';
-                recognition.start();
+            console.log('🎤 Starting to listen...');
+            
+            if (!recognition) {
+                console.error('❌ Recognition not initialized');
+                document.getElementById('status').textContent = 'Speech recognition not available - please refresh page';
+                return;
             }
+            
+            // Request microphone permission first
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    console.log('✅ Microphone permission granted');
+                    
+                    // Stop the stream immediately as we just needed permission
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    try {
+                        isListening = true;
+                        document.getElementById('micButton').classList.add('listening');
+                        document.getElementById('micButton').textContent = '🔴';
+                        document.getElementById('response').style.display = 'none';
+                        document.getElementById('status').textContent = '🎤 Starting speech recognition...';
+                        
+                        recognition.start();
+                        console.log('🎤 Speech recognition start() called');
+                    } catch (error) {
+                        console.error('❌ Error starting recognition:', error);
+                        document.getElementById('status').textContent = 'Error starting speech recognition: ' + error.message;
+                        stopListening();
+                    }
+                })
+                .catch(function(error) {
+                    console.error('❌ Microphone permission denied:', error);
+                    document.getElementById('status').textContent = 'Microphone permission required - please allow and try again';
+                    stopListening();
+                });
         }
 
         function stopListening() {
+            console.log('🛑 Stopping listening...');
+            
             isListening = false;
             document.getElementById('micButton').classList.remove('listening');
             document.getElementById('micButton').textContent = '🎤';
-            document.getElementById('status').textContent = 'Tap microphone to speak';
+            
             if (recognition) {
-                recognition.stop();
+                try {
+                    recognition.stop();
+                    console.log('✅ Speech recognition stopped');
+                } catch (error) {
+                    console.error('❌ Error stopping recognition:', error);
+                }
             }
+            
+            // Set status back to ready after a brief delay
+            setTimeout(() => {
+                if (!isListening) {
+                    document.getElementById('status').textContent = 'Tap microphone to speak';
+                }
+            }, 1000);
+        }
+        
+        // Test microphone function
+        function testMicrophone() {
+            console.log('🔧 Testing microphone...');
+            document.getElementById('status').textContent = '🔧 Testing microphone access...';
+            
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    console.log('✅ Microphone access granted');
+                    document.getElementById('status').textContent = '✅ Microphone working! Now tap the main microphone button to speak.';
+                    
+                    // Stop the stream
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // Test speech recognition
+                    if (recognition) {
+                        document.getElementById('status').textContent = '✅ Microphone and speech recognition ready!';
+                    } else {
+                        document.getElementById('status').textContent = '⚠️ Microphone OK, but speech recognition not initialized. Refresh page.';
+                    }
+                })
+                .catch(function(error) {
+                    console.error('❌ Microphone test failed:', error);
+                    document.getElementById('status').textContent = '❌ Microphone access denied. Please allow microphone permission and try again.';
+                });
         }
 
         function processVoiceInput(input) {
@@ -1328,6 +1423,37 @@
             document.getElementById('recordingStatus').innerHTML = 
                 `📁 ${recordedVoiceSamples.length} voice samples uploaded. Click "🧠 Train Voice Model" to activate personalized voice.`;
         }
+        
+        // Initialize speech recognition when page loads
+        initializeSpeechRecognition();
+        
+        // Add event listener to microphone button as backup
+        document.addEventListener('DOMContentLoaded', function() {
+            const micButton = document.getElementById('micButton');
+            if (micButton) {
+                console.log('✅ Microphone button found, adding event listeners');
+                
+                // Add both onclick and addEventListener for reliability
+                micButton.addEventListener('click', function(e) {
+                    console.log('🔘 Microphone button clicked via addEventListener');
+                    e.preventDefault();
+                    toggleListening();
+                });
+                
+                // Test button functionality
+                console.log('🧪 Testing microphone button...');
+                if (typeof toggleListening === 'function') {
+                    console.log('✅ toggleListening function is available');
+                } else {
+                    console.error('❌ toggleListening function not found');
+                }
+            } else {
+                console.error('❌ Microphone button not found');
+            }
+        });
+        
+        // Initialize AI
+        console.log('🚀 Nakato Jane Voice Assistant initialized');
     </script>
 </body>
 </html>
