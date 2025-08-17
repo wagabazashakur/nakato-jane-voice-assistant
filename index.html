@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nakato Jane Voice Assistant</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #6A4C93, #9B5DE5, #CE96FB);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+        .mic-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: #fff;
+            border: none;
+            font-size: 50px;
+            color: #6A4C93;
+            cursor: pointer;
+            margin: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .mic-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+        .mic-button.listening {
+            background: #ff4444;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .status {
+            font-size: 1.3em;
+            margin: 20px 0;
+            min-height: 30px;
+        }
+        .response {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        .examples {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        .examples h3 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .examples ul {
+            list-style: none;
+            padding: 0;
+        }
+        .examples li {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .examples li:before {
+            content: "💬 ";
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Nakato Jane</h1>
+        <p class="subtitle">Your Professional AI Voice Assistant</p>
+        
+        <button class="mic-button" id="micButton" onclick="toggleListening()">
+            🎤
+        </button>
+        
+        <div class="status" id="status">Tap microphone to speak</div>
+        
+        <div class="response" id="response"></div>
+        
+        <div class="examples">
+            <h3>💡 Try asking:</h3>
+            <ul>
+                <li>"Tell me about your work experience"</li>
+                <li>"What are your technical skills?"</li>
+                <li>"Show me your projects"</li>
+                <li>"What is your education background?"</li>
+                <li>"How can I contact you?"</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let isListening = false;
+        let recognition;
+        let synthesis = window.speechSynthesis;
+
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                document.getElementById('status').textContent = '🎤 Listening... Speak now!';
+            };
+
+            recognition.onresult = function(event) {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                
+                if (event.results[event.results.length - 1].isFinal) {
+                    processVoiceInput(transcript);
+                }
+            };
+
+            recognition.onerror = function(event) {
+                document.getElementById('status').textContent = 'Error: ' + event.error;
+                stopListening();
+            };
+
+            recognition.onend = function() {
+                stopListening();
+            };
+        } else {
+            document.getElementById('status').textContent = 'Speech recognition not supported in this browser';
+        }
+
+        function toggleListening() {
+            if (!isListening) {
+                startListening();
+            } else {
+                stopListening();
+            }
+        }
+
+        function startListening() {
+            if (recognition) {
+                isListening = true;
+                document.getElementById('micButton').classList.add('listening');
+                document.getElementById('micButton').textContent = '🔴';
+                document.getElementById('response').style.display = 'none';
+                recognition.start();
+            }
+        }
+
+        function stopListening() {
+            isListening = false;
+            document.getElementById('micButton').classList.remove('listening');
+            document.getElementById('micButton').textContent = '🎤';
+            document.getElementById('status').textContent = 'Tap microphone to speak';
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        function processVoiceInput(input) {
+            document.getElementById('status').textContent = 'Processing...';
+            
+            // Generate Nakato Jane's response
+            const response = generateNakatoResponse(input.toLowerCase());
+            
+            // Display response
+            document.getElementById('response').innerHTML = `
+                <h4>Nakato Jane says:</h4>
+                <p>${response}</p>
+            `;
+            document.getElementById('response').style.display = 'block';
+            document.getElementById('status').textContent = 'Response ready';
+            
+            // Speak the response
+            speakResponse(response);
+        }
+
+        function generateNakatoResponse(input) {
+            if (input.includes('experience') || input.includes('work') || input.includes('job')) {
+                return "I have extensive experience in software development, particularly in mobile app development with Flutter and backend development with Python. I've worked on various projects including e-commerce platforms, voice assistants, and web applications.";
+            } else if (input.includes('skills') || input.includes('technology') || input.includes('programming')) {
+                return "My technical skills include Flutter for mobile development, Python for backend services, JavaScript for web development, and experience with databases like MongoDB and PostgreSQL. I'm also proficient in cloud services like AWS and Google Cloud.";
+            } else if (input.includes('education') || input.includes('study') || input.includes('degree')) {
+                return "I have a strong educational background in Computer Science with additional certifications in mobile app development and cloud computing. I continuously update my skills through online courses and hands-on projects.";
+            } else if (input.includes('project') || input.includes('portfolio') || input.includes('build')) {
+                return "I've built various projects including this voice assistant, e-commerce mobile apps, web dashboards, and API integrations. Each project demonstrates my ability to deliver complete, user-friendly solutions.";
+            } else if (input.includes('hello') || input.includes('hi') || input.includes('hey')) {
+                return "Hello! I'm Nakato Jane, your professional AI assistant. I'm here to tell you about my work experience, skills, and projects. What would you like to know?";
+            } else if (input.includes('contact') || input.includes('reach') || input.includes('hire')) {
+                return "You can reach me through my professional profiles. I'm always open to discussing new opportunities and collaborating on exciting projects.";
+            } else {
+                return "That's an interesting question! As a software developer, I focus on creating innovative solutions. Could you ask me about my work experience, technical skills, or projects I've worked on?";
+            }
+        }
+
+        function speakResponse(text) {
+            if (synthesis) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1.1;
+                utterance.volume = 0.8;
+                
+                // Try to use a female voice
+                const voices = synthesis.getVoices();
+                for (let voice of voices) {
+                    if (voice.name.toLowerCase().includes('female') || 
+                        voice.name.toLowerCase().includes('woman') ||
+                        voice.name.toLowerCase().includes('samantha') ||
+                        voice.name.toLowerCase().includes('karen')) {
+                        utterance.voice = voice;
+                        break;
+                    }
+                }
+                
+                synthesis.speak(utterance);
+            }
+        }
+
+        // Load voices when available
+        if (synthesis) {
+            synthesis.onvoiceschanged = function() {
+                // Voices are now loaded
+            };
+        }
+    </script>
+</body>
+</html>
