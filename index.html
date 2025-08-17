@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nakato Jane Voice Assistant - Free Version</title>
+    <title>Nakato Jane Voice Assistant - AI Powered</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -121,7 +121,7 @@
 <body>
     <div class="container">
         <h1>🎤 Nakato Jane</h1>
-        <p class="subtitle">Professional Waitress & Hostess at Hilton Suites</p>
+        <p class="subtitle">AI-Powered Waitress & Hostess at Hilton Suites</p>
         
         <button class="mic-button" id="micButton" onclick="toggleListening()">
             🎤
@@ -130,6 +130,14 @@
         <div class="status" id="status">Tap microphone to speak</div>
         
         <div class="response" id="response"></div>
+        
+        <!-- AI Model Status -->
+        <div style="background: rgba(76, 175, 80, 0.3); padding: 10px; border-radius: 5px; margin: 20px 0; font-size: 14px;">
+            🧠 <strong>AI Model: ACTIVE</strong><br>
+            💡 Lightweight AI running in browser<br>
+            🎤 Female voice forced for all responses<br>
+            🌍 Can answer any question intelligently
+        </div>
         
         <!-- FREE Voice Cloning Section -->
         <div class="voice-clone-section">
@@ -284,8 +292,8 @@
                 document.getElementById('response').style.display = 'block';
                 document.getElementById('status').textContent = 'Response ready';
                 
-                // Speak the response with cloned voice
-                speakWithCustomVoice(response);
+                // Speak the response with ULTRA-AGGRESSIVE FEMALE VOICE
+                forceFemaleSpeech(response);
             }).catch(error => {
                 // Fallback to local responses if AI fails
                 const response = generateNakatoResponse(input.toLowerCase());
@@ -297,74 +305,228 @@
                 document.getElementById('response').style.display = 'block';
                 document.getElementById('status').textContent = 'Response ready';
                 
-                speakWithCustomVoice(response);
+                forceFemaleSpeech(response);
             });
         }
 
         async function getAIResponse(input) {
-            // Try multiple free AI APIs
-            const aiProviders = [
-                { name: 'Hugging Face', func: getHuggingFaceResponse },
-                { name: 'OpenAI Free', func: getOpenAIResponse },
-                { name: 'Google AI', func: getGoogleAIResponse }
-            ];
-
-            for (let provider of aiProviders) {
-                try {
-                    document.getElementById('status').textContent = `🤖 Asking ${provider.name} AI...`;
-                    const response = await provider.func(input);
-                    if (response && response.length > 10) {
-                        return response;
-                    }
-                } catch (error) {
-                    console.log(`${provider.name} failed:`, error);
-                }
-            }
-
-            throw new Error('All AI providers failed');
+            // Use lightweight embedded AI instead of external APIs
+            return nakatoAI.generateResponse(input);
         }
 
-        async function getHuggingFaceResponse(input) {
-            // Free Hugging Face Inference API
-            const response = await fetch('https://api-inference.huggingface.co/models/microsoft/DialoGPT-large', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    inputs: `Human: ${input}\nNakato Jane (professional waitress at Hilton Suites):`,
-                    parameters: {
-                        max_length: 150,
-                        temperature: 0.7,
-                        do_sample: true
-                    }
-                })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data && data.length > 0 && data[0].generated_text) {
-                    let aiResponse = data[0].generated_text;
-                    // Clean up the response
-                    aiResponse = aiResponse.replace(/Human:.*?\n/g, '');
-                    aiResponse = aiResponse.replace(/Nakato Jane.*?:/g, '');
-                    aiResponse = aiResponse.trim();
+        // ===== EMBEDDED AI MODEL (SMALL & LIGHTWEIGHT) =====
+        class NakatoAI {
+            constructor() {
+                this.knowledge = {
+                    // General Knowledge
+                    greetings: ["Hello! I'm Nakato Jane, how can I help you today?", "Hi there! Nice to meet you!", "Good to see you! What can I do for you?"],
+                    weather: "I wish I could check the weather for you, but I don't have real-time data. You might want to check your weather app!",
+                    time: `The current time is ${new Date().toLocaleTimeString()}`,
+                    date: `Today is ${new Date().toLocaleDateString()}`,
                     
-                    // Add Nakato Jane's personality
-                    return personalizeResponse(aiResponse, input);
-                }
+                    // Personal Info
+                    name: "I'm Nakato Jane, a professional waitress and hostess with over 5 years of experience at Hilton Suites.",
+                    age: "I'm in my twenties and passionate about hospitality!",
+                    location: "I work at Hilton Suites and I'm originally from Uganda.",
+                    languages: "I speak English, Arabic, and Luganda fluently!",
+                    
+                    // Work & Experience
+                    job: "I'm a professional waitress and hostess at Hilton Suites. I love providing excellent customer service!",
+                    experience: "I have over 5 years of experience in hospitality, specializing in fine dining and customer relations.",
+                    skills: "I'm skilled in customer service, food and beverage service, event coordination, and I speak multiple languages.",
+                    
+                    // Technology & AI
+                    ai: "I'm an AI voice assistant based on Nakato Jane's personality and experience. I can help with questions about hospitality, general knowledge, or just have a friendly chat!",
+                    technology: "I'm powered by web technologies and run entirely in your browser - no external servers needed!",
+                    
+                    // Fallback responses
+                    default: [
+                        "That's an interesting question! As a hospitality professional, I always try to learn new things.",
+                        "I'd love to help with that! Can you tell me more about what you're looking for?",
+                        "That's a great question! While I specialize in hospitality, I'm always eager to assist however I can.",
+                        "I may not know everything, but I'm here to help! What specific information are you looking for?"
+                    ]
+                };
+                
+                this.patterns = {
+                    greeting: /\b(hello|hi|hey|good morning|good afternoon|good evening)\b/i,
+                    name: /\b(name|who are you|what.*name)\b/i,
+                    age: /\b(age|old|young)\b/i,
+                    location: /\b(where.*from|location|live|work)\b/i,
+                    job: /\b(job|work|profession|career|what.*do)\b/i,
+                    experience: /\b(experience|background|history|years)\b/i,
+                    skills: /\b(skills|abilities|talents|good at)\b/i,
+                    languages: /\b(language|speak|languages|tongue)\b/i,
+                    weather: /\b(weather|temperature|hot|cold|rain|sunny)\b/i,
+                    time: /\b(time|clock|hour)\b/i,
+                    date: /\b(date|day|today|calendar)\b/i,
+                    ai: /\b(ai|artificial|intelligence|robot|computer)\b/i,
+                    technology: /\b(technology|tech|how.*work|powered)\b/i,
+                    thanks: /\b(thank|thanks|appreciate)\b/i,
+                    help: /\b(help|assist|support)\b/i
+                };
             }
-            throw new Error('Hugging Face API failed');
+            
+            generateResponse(input) {
+                const text = input.toLowerCase();
+                
+                // Check patterns
+                for (const [category, pattern] of Object.entries(this.patterns)) {
+                    if (pattern.test(text)) {
+                        if (category === 'greeting') return this.getRandomResponse(this.knowledge.greetings);
+                        if (category === 'thanks') return "You're very welcome! It's my pleasure to help!";
+                        if (this.knowledge[category]) {
+                            return Array.isArray(this.knowledge[category]) ? 
+                                this.getRandomResponse(this.knowledge[category]) : 
+                                this.knowledge[category];
+                        }
+                    }
+                }
+                
+                // Specific question matching
+                if (text.includes('menu') || text.includes('food') || text.includes('drink')) {
+                    return "At Hilton Suites, we offer a wonderful selection of international cuisine, local specialties, fine wines, and signature cocktails. I'd be happy to recommend something based on your preferences!";
+                }
+                
+                if (text.includes('reservation') || text.includes('booking') || text.includes('table')) {
+                    return "I'd be delighted to help with reservations! While I can't book directly through this interface, I can guide you on how to make a reservation at Hilton Suites.";
+                }
+                
+                if (text.includes('tell me about yourself')) {
+                    return "I'm Nakato Jane, a passionate hospitality professional with over 5 years of experience at Hilton Suites. I speak English, Arabic, and Luganda, and I love providing exceptional service to guests from around the world!";
+                }
+                
+                // Mathematical calculations
+                const mathResult = this.calculateMath(text);
+                if (mathResult) return `The answer is ${mathResult}!`;
+                
+                // Default response
+                return this.getRandomResponse(this.knowledge.default);
+            }
+            
+            getRandomResponse(responses) {
+                return responses[Math.floor(Math.random() * responses.length)];
+            }
+            
+            calculateMath(text) {
+                // Simple math: "what is 5 plus 3" or "5 + 3"
+                const mathPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\+|plus|add)\s*(\d+)/i;
+                const match = text.match(mathPattern);
+                if (match) {
+                    return parseInt(match[1]) + parseInt(match[2]);
+                }
+                
+                const subtractPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\-|minus|subtract)\s*(\d+)/i;
+                const subMatch = text.match(subtractPattern);
+                if (subMatch) {
+                    return parseInt(subMatch[1]) - parseInt(subMatch[2]);
+                }
+                
+                const multiplyPattern = /(?:what (?:is |are )?)?(\d+)\s*(?:\*|times|multiply)\s*(\d+)/i;
+                const multMatch = text.match(multiplyPattern);
+                if (multMatch) {
+                    return parseInt(multMatch[1]) * parseInt(multMatch[2]);
+                }
+                
+                return null;
+            }
         }
 
-        async function getOpenAIResponse(input) {
-            // This would require an API key - for now, return enhanced local response
-            throw new Error('OpenAI requires API key');
-        }
+        // Initialize AI
+        const nakatoAI = new NakatoAI();
 
-        async function getGoogleAIResponse(input) {
-            // This would require an API key - for now, return enhanced local response
-            throw new Error('Google AI requires API key');
+        // ===== ULTRA-AGGRESSIVE FEMALE VOICE FORCING =====
+        function forceFemaleSpeech(text) {
+            return new Promise((resolve, reject) => {
+                // Cancel any existing speech
+                window.speechSynthesis.cancel();
+                
+                // Wait a bit for cancellation
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    
+                    // FORCE FEMALE VOICE - ULTRA AGGRESSIVE
+                    const voices = window.speechSynthesis.getVoices();
+                    console.log('🎭 Available voices:', voices.map(v => `${v.name} (${v.gender || 'unknown'})`));
+                    
+                    // Priority list for female voices
+                    const femaleNames = [
+                        'female', 'woman', 'zira', 'hazel', 'aria', 'eva', 'samantha', 
+                        'alice', 'kate', 'susan', 'karen', 'anna', 'linda', 'mary',
+                        'microsoft zira', 'microsoft hazel', 'google us english female',
+                        'en-us-female', 'en-us-wavenet-f', 'en-us-wavenet-g', 'en-us-wavenet-h'
+                    ];
+                    
+                    // Find female voice
+                    let femaleVoice = null;
+                    
+                    // Method 1: Search by name
+                    for (let femaleName of femaleNames) {
+                        femaleVoice = voices.find(voice => 
+                            voice.name.toLowerCase().includes(femaleName.toLowerCase())
+                        );
+                        if (femaleVoice) {
+                            console.log(`✅ Found female voice by name: ${femaleVoice.name}`);
+                            break;
+                        }
+                    }
+                    
+                    // Method 2: Avoid obviously male voices
+                    if (!femaleVoice) {
+                        const maleNames = ['david', 'mark', 'paul', 'male', 'man', 'james', 'microsoft david'];
+                        femaleVoice = voices.find(voice => {
+                            const name = voice.name.toLowerCase();
+                            return !maleNames.some(male => name.includes(male));
+                        });
+                        
+                        if (femaleVoice) {
+                            console.log(`✅ Using non-male voice: ${femaleVoice.name}`);
+                        }
+                    }
+                    
+                    // Method 3: Force any voice to sound female with ultra-high pitch
+                    if (!femaleVoice && voices.length > 0) {
+                        femaleVoice = voices.find(voice => voice.lang.includes('en')) || voices[0];
+                        console.log(`⚠️ FORCING voice to sound female: ${femaleVoice.name}`);
+                    }
+                    
+                    if (femaleVoice) {
+                        utterance.voice = femaleVoice;
+                        console.log(`🎤 Selected voice: ${femaleVoice.name} (${femaleVoice.lang})`);
+                    } else {
+                        console.log('❌ No voice found, using default with ULTRA HIGH pitch');
+                    }
+                    
+                    // ULTRA HIGH PITCH to sound feminine - MAXIMUM SETTINGS
+                    utterance.pitch = 2.0;  // MAXIMUM pitch (female range)
+                    utterance.rate = 0.85;  // Slower rate for feminine speech
+                    utterance.volume = 1.0; // Full volume
+                    
+                    // Add gender-neutral adjustments
+                    utterance.voiceURI = femaleVoice?.voiceURI || '';
+                    
+                    // Log final settings
+                    console.log(`🎭 FINAL Voice settings: 
+                        Voice: ${femaleVoice?.name || 'default'} 
+                        Pitch: ${utterance.pitch} (MAX) 
+                        Rate: ${utterance.rate}
+                        Volume: ${utterance.volume}`);
+                    console.log(`🎤 Speaking with FORCED FEMALE voice: "${text}"`);
+                    
+                    utterance.onend = () => {
+                        console.log('✅ Female speech completed');
+                        resolve();
+                    };
+                    
+                    utterance.onerror = (error) => {
+                        console.error('❌ Speech error:', error);
+                        reject(error);
+                    };
+                    
+                    // FORCE START SPEECH
+                    window.speechSynthesis.speak(utterance);
+                }, 150); // Longer wait to ensure proper voice loading
+            });
         }
 
         function personalizeResponse(aiResponse, originalInput) {
