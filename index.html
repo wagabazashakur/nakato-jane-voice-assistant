@@ -39,8 +39,11 @@
   let isListening = false;
     let isSpeaking = false;
     let autoListenEnabled = true;
-    let recognition = null;
+  let recognition = null;
   let knowledgeEnabled = true;
+  let partialBuffer = '';
+  let partialTimer = null;
+  let cachedVoices = [];
   // No uploaded voice in this minimal version
 
     // Initialize STT (hands-free)
@@ -58,13 +61,30 @@
       recognition.onstart = () => setStatus('🎤 Listening...');
 
       recognition.onresult = (e) => {
-        let text = '';
-        for (let i = e.resultIndex; i < e.results.length; i++) text += e.results[i][0].transcript;
-        const latest = e.results[e.results.length - 1];
+        let latest = e.results[e.results.length - 1];
+        let phrase = '';
+        try { phrase = latest[0].transcript || '' } catch {}
+
         if (latest && latest.isFinal) {
-          // pause listening while thinking/speaking to avoid feedback
+          clearTimeout(partialTimer); partialTimer = null;
+          partialBuffer = '';
           stopListening();
-          processVoiceInput(text.trim());
+          processVoiceInput((phrase || '').trim());
+          return;
+        }
+
+        // Debounce interim results: if user pauses, treat as final
+        if (phrase) {
+          partialBuffer = phrase;
+          clearTimeout(partialTimer);
+          partialTimer = setTimeout(() => {
+            if (!isSpeaking && partialBuffer && partialBuffer.trim().split(/\s+/).length >= 3) {
+              stopListening();
+              const p = partialBuffer.trim();
+              partialBuffer = '';
+              processVoiceInput(p);
+            }
+          }, 1300);
         }
       };
 
@@ -74,7 +94,7 @@
         if (autoListenEnabled && !isSpeaking) safeRestartListening(1200);
       };
 
-      recognition.onend = () => {
+  recognition.onend = () => {
         isListening = false;
         document.getElementById('micButton').classList.remove('listening');
         document.getElementById('micButton').textContent = '🎤';
@@ -110,6 +130,7 @@
       document.getElementById('micButton').classList.remove('listening');
       document.getElementById('micButton').textContent = '🎤';
       setStatus('Tap microphone to speak');
+      clearTimeout(partialTimer); partialTimer = null; partialBuffer = '';
     }
 
     function safeRestartListening(delayMs = 300) {
@@ -121,12 +142,12 @@
       if (!input) { if (autoListenEnabled) safeRestartListening(500); return; }
       setStatus('Thinking...');
 
-      let reply = '';
+    let reply = '';
       // Try knowledge engine first for likely general questions
       const looksLikeQuestion = /\b(who|what|when|where|why|how)\b|\?|tell me about|explain|define/i.test(input);
       if (knowledgeEnabled && looksLikeQuestion) {
         try {
-          reply = await answerFromWikipedia(input);
+      reply = await withTimeout(answerFromWikipedia(input), 4500);
         } catch (e) {
           // ignore and fall back
         }
@@ -154,7 +175,11 @@
       isSpeaking = true;
       stopListening();
       const utter = new SpeechSynthesisUtterance(text);
-      const voices = speechSynthesis.getVoices();
+      // Ensure voices are loaded
+      if (!cachedVoices.length) {
+        cachedVoices = speechSynthesis.getVoices();
+      }
+      const voices = cachedVoices.length ? cachedVoices : speechSynthesis.getVoices();
       const preferred = ['zira','hazel','samantha','aria','eva','female'];
       let v = voices.find(v => preferred.some(p => v.name.toLowerCase().includes(p)))
             || voices.find(v => v.lang?.startsWith('en') && !/david|male|mark/.test(v.name?.toLowerCase?.() || ''))
@@ -163,7 +188,7 @@
       utter.pitch = 1.5; utter.rate = 0.95; utter.volume = 1.0;
       utter.onend = () => { isSpeaking = false; if (autoListenEnabled) safeRestartListening(350); };
       utter.onerror = () => { isSpeaking = false; if (autoListenEnabled) safeRestartListening(350); };
-      speechSynthesis.cancel();
+      try { speechSynthesis.cancel(); speechSynthesis.resume(); } catch {}
       speechSynthesis.speak(utter);
     }
 
@@ -179,6 +204,14 @@
       if (/\b(date|today)\b/.test(t)) return `Today is ${new Date().toLocaleDateString()}.`;
       if (/(menu|food|drink)/.test(t)) return 'We offer international cuisine, local specialties, and fine beverages at Hilton Suites.';
       return "I'm here to help with hospitality and general questions!";
+    }
+
+    // Helper: timeout wrapper for promises
+    function withTimeout(promise, ms) {
+      return new Promise((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error('timeout')), ms);
+        promise.then(v => { clearTimeout(t); resolve(v); }, err => { clearTimeout(t); reject(err); });
+      });
     }
 
     // Free general knowledge via Wikipedia Summary API
@@ -234,7 +267,11 @@
   // Removed server URL tools and upload
 
     // Boot
-  document.addEventListener('DOMContentLoaded', () => { initializeSpeechRecognition(); });
+  document.addEventListener('DOMContentLoaded', () => {
+    try { cachedVoices = speechSynthesis.getVoices(); } catch {}
+    try { speechSynthesis.addEventListener('voiceschanged', () => { cachedVoices = speechSynthesis.getVoices(); }); } catch {}
+    initializeSpeechRecognition();
+  });
   </script>
 </body>
 </html>
