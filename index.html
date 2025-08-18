@@ -28,6 +28,11 @@
       <button id="toggleKnowledge" class="btn" onclick="toggleKnowledge()">Knowledge: On</button>
       <span id="knowledgeHint" style="align-self:center; opacity:.9; font-size:14px">Answers general questions via Wikipedia</span>
     </div>
+    <div class="row">
+      <button id="toggleAI" class="btn" onclick="toggleAI()">AI: Off</button>
+      <button id="setAIKey" class="btn" onclick="promptAIKey()">Set AI Key</button>
+      <span id="aiHint" style="align-self:center; opacity:.9; font-size:14px">Uses free Groq LLaMA 3 if key is set</span>
+    </div>
 
   <div class="foot">No server needed. Uses browser speech recognition/voice and free Wikipedia for general answers.</div>
   </div>
@@ -46,6 +51,9 @@
   let cachedVoices = [];
   let ttsUnlocked = false;
   let audioCtx = null;
+  let aiEnabled = false;
+  const AI_STORAGE_KEY = 'nakato_groq_api_key';
+  const AI_MODEL = 'llama3-8b-8192'; // Groq model
   // No uploaded voice in this minimal version
 
     // Initialize STT (hands-free)
@@ -146,9 +154,17 @@
       setStatus('Thinking...');
 
     let reply = '';
-      // Try knowledge engine first for likely general questions
+      // Try AI first if enabled for likely general questions
       const looksLikeQuestion = /\b(who|what|when|where|why|how)\b|\?|tell me about|explain|define/i.test(input);
-      if (knowledgeEnabled && looksLikeQuestion) {
+      if (aiEnabled && getAIKey() && looksLikeQuestion) {
+        try {
+          reply = await withTimeout(aiAnswerGroq(input), 6000);
+        } catch (e) {
+          // ignore and fall through
+        }
+      }
+      // Then Wikipedia
+      if (!reply && knowledgeEnabled && looksLikeQuestion) {
         try {
       reply = await withTimeout(answerFromWikipedia(input), 4500);
         } catch (e) {
@@ -261,6 +277,53 @@
       });
     }
 
+    // === AI (Groq) Integration ===
+    function getAIKey() { try { return localStorage.getItem(AI_STORAGE_KEY) || ''; } catch { return ''; } }
+    function setAIKey(k) { try { if (k) localStorage.setItem(AI_STORAGE_KEY, k); else localStorage.removeItem(AI_STORAGE_KEY); } catch {} }
+
+    function toggleAI() {
+      aiEnabled = !aiEnabled;
+      document.getElementById('toggleAI').textContent = `AI: ${aiEnabled ? 'On' : 'Off'}`;
+      document.getElementById('aiHint').style.opacity = aiEnabled ? 0.9 : 0.5;
+      setStatus(aiEnabled ? 'AI enabled (Groq)' : 'AI disabled');
+    }
+
+    function promptAIKey() {
+      const existing = getAIKey();
+      const k = prompt('Paste your Groq API key (will be stored only in your browser). Leave empty to clear:', existing || '');
+      if (k === null) return; // cancelled
+      const trimmed = (k || '').trim();
+      setAIKey(trimmed);
+      setStatus(trimmed ? 'AI key set locally' : 'AI key cleared');
+    }
+
+    async function aiAnswerGroq(userInput) {
+      const key = getAIKey();
+      if (!key) throw new Error('no key');
+      const sys = "You are Nakato Jane, a professional waitress and hostess at Hilton Suites. Be brief (2-3 sentences), friendly, and helpful with general knowledge and hospitality questions.";
+      const body = {
+        model: AI_MODEL,
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: String(userInput || '').slice(0, 2000) }
+        ],
+        temperature: 0.5,
+        max_tokens: 256
+      };
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) throw new Error('groq error');
+      const data = await resp.json();
+      const text = data?.choices?.[0]?.message?.content || '';
+      return trimForSpeaking(text) || "I couldn't get an AI answer right now.";
+    }
+
     // Free general knowledge via Wikipedia Summary API
     async function answerFromWikipedia(query) {
       const cleaned = query
@@ -317,6 +380,10 @@
   document.addEventListener('DOMContentLoaded', () => {
     try { cachedVoices = speechSynthesis.getVoices(); } catch {}
     try { speechSynthesis.addEventListener('voiceschanged', () => { cachedVoices = speechSynthesis.getVoices(); }); } catch {}
+    // Initialize AI UI state
+    aiEnabled = !!getAIKey();
+    document.getElementById('toggleAI').textContent = `AI: ${aiEnabled ? 'On' : 'Off'}`;
+    document.getElementById('aiHint').style.opacity = aiEnabled ? 0.9 : 0.5;
     initializeSpeechRecognition();
   });
   </script>
