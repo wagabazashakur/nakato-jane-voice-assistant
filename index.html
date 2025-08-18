@@ -24,17 +24,23 @@
     <div id="status" class="status">Tap microphone to speak</div>
     <div id="response" class="response"></div>
 
-  <div class="foot">No server needed. Uses browser speech recognition and voice.</div>
+    <div class="row">
+      <button id="toggleKnowledge" class="btn" onclick="toggleKnowledge()">Knowledge: On</button>
+      <span id="knowledgeHint" style="align-self:center; opacity:.9; font-size:14px">Answers general questions via Wikipedia</span>
+    </div>
+
+  <div class="foot">No server needed. Uses browser speech recognition/voice and free Wikipedia for general answers.</div>
   </div>
 
   <script>
   // No server config needed
 
     // State
-    let isListening = false;
+  let isListening = false;
     let isSpeaking = false;
     let autoListenEnabled = true;
     let recognition = null;
+  let knowledgeEnabled = true;
   // No uploaded voice in this minimal version
 
     // Initialize STT (hands-free)
@@ -111,12 +117,24 @@
     }
 
     // Core assistant flow
-    function processVoiceInput(input) {
+    async function processVoiceInput(input) {
       if (!input) { if (autoListenEnabled) safeRestartListening(500); return; }
-  setStatus('Thinking...');
-  const reply = ruleBasedResponse(input);
-  showReply(reply);
-  speakPipeline(reply);
+      setStatus('Thinking...');
+
+      let reply = '';
+      // Try knowledge engine first for likely general questions
+      const looksLikeQuestion = /\b(who|what|when|where|why|how)\b|\?|tell me about|explain|define/i.test(input);
+      if (knowledgeEnabled && looksLikeQuestion) {
+        try {
+          reply = await answerFromWikipedia(input);
+        } catch (e) {
+          // ignore and fall back
+        }
+      }
+      if (!reply) reply = ruleBasedResponse(input);
+
+      showReply(reply);
+      speakPipeline(reply);
     }
 
     function showReply(text) {
@@ -161,6 +179,56 @@
       if (/\b(date|today)\b/.test(t)) return `Today is ${new Date().toLocaleDateString()}.`;
       if (/(menu|food|drink)/.test(t)) return 'We offer international cuisine, local specialties, and fine beverages at Hilton Suites.';
       return "I'm here to help with hospitality and general questions!";
+    }
+
+    // Free general knowledge via Wikipedia Summary API
+    async function answerFromWikipedia(query) {
+      const cleaned = query
+        .replace(/^nakato\s+jane[,\s:]*/i, '')
+        .replace(/^(who|what|when|where|why|how)\s+is\s+/i, '')
+        .replace(/^(tell me about|define|explain)\s+/i, '')
+        .trim();
+      if (!cleaned) throw new Error('empty');
+
+      // Try direct summary endpoint
+      const titleGuess = encodeURIComponent(cleaned.replace(/[?!.]+$/,''));
+      const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${titleGuess}`;
+      const sum = await fetch(summaryUrl, { headers: { 'Accept': 'application/json' } });
+      if (sum.ok) {
+        const data = await sum.json();
+        if (data && data.extract) return trimForSpeaking(data.extract);
+      }
+
+      // Fallback: search API
+      const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&format=json&origin=*&search=${encodeURIComponent(cleaned)}`;
+      const res = await fetch(searchUrl);
+      if (!res.ok) throw new Error('search failed');
+      const arr = await res.json();
+      const results = Array.isArray(arr) && arr[1] && arr[1].length ? arr[1] : [];
+      if (!results.length) throw new Error('no results');
+      const best = results[0];
+      const sum2 = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(best)}`);
+      if (sum2.ok) {
+        const data2 = await sum2.json();
+        if (data2 && data2.extract) return trimForSpeaking(data2.extract);
+      }
+      throw new Error('no summary');
+    }
+
+    function trimForSpeaking(text) {
+      // Keep it concise for TTS
+      const max = 500; // characters
+      let s = String(text || '').replace(/\s+/g, ' ').trim();
+      if (s.length > max) s = s.slice(0, max).replace(/[,;:]?\s+[^\s]*$/, '');
+      return s || "I couldn't find an answer right now.";
+    }
+
+    // UI toggle for knowledge
+    function toggleKnowledge() {
+      knowledgeEnabled = !knowledgeEnabled;
+      document.getElementById('toggleKnowledge').textContent = `Knowledge: ${knowledgeEnabled ? 'On' : 'Off'}`;
+      document.getElementById('knowledgeHint').style.opacity = knowledgeEnabled ? 0.9 : 0.5;
+      setStatus(knowledgeEnabled ? 'General knowledge is enabled' : 'General knowledge is off');
     }
 
   // Removed server URL tools and upload
