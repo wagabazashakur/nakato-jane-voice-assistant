@@ -44,6 +44,8 @@
   let partialBuffer = '';
   let partialTimer = null;
   let cachedVoices = [];
+  let ttsUnlocked = false;
+  let audioCtx = null;
   // No uploaded voice in this minimal version
 
     // Initialize STT (hands-free)
@@ -113,6 +115,7 @@
 
     function startListening() {
       if (!recognition) return;
+  unlockAudioAndTTS();
       navigator.mediaDevices.getUserMedia({ audio: true }).then((s) => {
         s.getTracks().forEach(t => t.stop()); // permission only
         if (isSpeaking) return; // don't listen over our own voice
@@ -170,7 +173,7 @@
   // No remote TTS in this minimal version
 
     // Browser TTS fallback
-    function speakBrowser(text) {
+  function speakBrowser(text) {
       if (!('speechSynthesis' in window)) { setStatus('Speech synthesis not supported'); if (autoListenEnabled) safeRestartListening(350); return; }
       isSpeaking = true;
       stopListening();
@@ -186,10 +189,54 @@
             || voices[0];
       if (v) utter.voice = v;
       utter.pitch = 1.5; utter.rate = 0.95; utter.volume = 1.0;
+      let started = false; let tried = 0; const maxTries = 2;
+      utter.onstart = () => { started = true; };
       utter.onend = () => { isSpeaking = false; if (autoListenEnabled) safeRestartListening(350); };
       utter.onerror = () => { isSpeaking = false; if (autoListenEnabled) safeRestartListening(350); };
       try { speechSynthesis.cancel(); speechSynthesis.resume(); } catch {}
-      speechSynthesis.speak(utter);
+      const attemptSpeak = () => {
+        try { speechSynthesis.speak(utter); } catch (e) { /* fallback below */ }
+        setTimeout(() => {
+          if (!started && tried < maxTries) {
+            tried++; try { speechSynthesis.cancel(); speechSynthesis.resume(); } catch {}
+            attemptSpeak();
+          } else if (!started) {
+            // Fallback: short beep so user hears something, then continue hands-free
+            try { beep(880, 180); } catch {}
+            isSpeaking = false; if (autoListenEnabled) safeRestartListening(350);
+          }
+        }, 1200);
+      };
+      attemptSpeak();
+    }
+
+    // Unlock audio/TTS on first interaction
+    function unlockAudioAndTTS() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch {}
+      if (ttsUnlocked) return;
+      try {
+        const u = new SpeechSynthesisUtterance('');
+        u.volume = 0; u.rate = 1; u.pitch = 1; // silent unlock utterance
+        u.onend = () => { ttsUnlocked = true; };
+        speechSynthesis.cancel(); speechSynthesis.resume();
+        speechSynthesis.speak(u);
+      } catch {}
+    }
+
+    // Simple beep via Web Audio as a last-resort audible cue
+    function beep(freq = 880, durationMs = 150, type = 'sine') {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type; osc.frequency.value = freq; gain.gain.value = 0.05;
+      osc.connect(gain).connect(audioCtx.destination);
+      const now = audioCtx.currentTime;
+      osc.start(now);
+      osc.stop(now + durationMs / 1000);
     }
 
   // No online AI; use simple rule-based replies
