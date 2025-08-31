@@ -7,8 +7,9 @@ const responses = {
   'tell us about yourself': { text: "I began my hospitality career over five years ago with Hilton Suites Jabal Omar in Makkah, where I worked as a waitress from March 2018 to January 2024 in a very high demand and culturally diverse environment. During this time, I developed strong skills in guest relations, order accuracy, teamwork, and handling busy service periods with professionalism and grace. Working in a five star setting taught me the importance of attention to detail, anticipating guest needs, and ensuring every guest feels valued. I take pride in being approachable, adaptable, and committed to creating memorable experiences. I am excited about the opportunity to bring my international five star experience, along with my passion for hospitality, to your esteemed hotel, and I look forward to contributing to maintaining the high standards your guests expect.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' },
   'talk about yourself': { text: "I began my hospitality career over five years ago with Hilton Suites Jabal Omar in Makkah, where I worked as a waitress from March 2018 to January 2024 in a very high demand and culturally diverse environment. During this time, I developed strong skills in guest relations, order accuracy, teamwork, and handling busy service periods with professionalism and grace. Working in a five star setting taught me the importance of attention to detail, anticipating guest needs, and ensuring every guest feels valued. I take pride in being approachable, adaptable, and committed to creating memorable experiences. I am excited about the opportunity to bring my international five star experience, along with my passion for hospitality, to your esteemed hotel, and I look forward to contributing to maintaining the high standards your guests expect.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' },
   'where are you from': { text: "I am currently staying in Abu Dhabi, UAE, and I am originally from Uganda.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' },
-  'about yourself': { text: "I have several years of experience in hospitality.", audio: 'audio/about.mp3' },
-  'strengths': { text: "My strengths include communication and customer service.", audio: 'audio/strengths.mp3' }
+  // Use the same Jane voice clip for all answers to avoid missing files.
+  'about yourself': { text: "I have several years of experience in hospitality.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' },
+  'strengths': { text: "My strengths include communication and customer service.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' }
   // Add more key phrases and audio files as needed
 };
 
@@ -175,6 +176,24 @@ async function fetchOpenAIResponse(prompt) {
 async function synthesizeJaneVoice(text) {
   const azureKey = window.AZURE_TTS_KEY;
   const azureRegion = window.AZURE_REGION;
+  /**
+   * Fallback to the browser's built‑in speech synthesis if Azure TTS is unavailable or fails.
+   */
+  function fallbackSpeak() {
+    try {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    } catch (fallbackErr) {
+      console.error('Fallback speech synthesis error:', fallbackErr);
+      document.getElementById('error-message').textContent = 'Sorry, Jane could not speak the answer.';
+    }
+  }
+  // If either key or region is missing, skip Azure and use the built‑in synthesis.
+  if (!azureKey || !azureRegion) {
+    fallbackSpeak();
+    return;
+  }
   try {
     console.log('Synthesizing Jane voice with Azure TTS:', text);
     const response = await fetch(`https://${azureRegion}.tts.speech.microsoft.com/cognitiveservices/v1`, {
@@ -189,6 +208,7 @@ async function synthesizeJaneVoice(text) {
       const errorText = await response.text();
       console.error('Azure TTS API error:', response.status, errorText);
       document.getElementById('error-message').textContent = 'Sorry, Jane could not speak the answer (TTS error).';
+      fallbackSpeak();
       return;
     }
     const blob = await response.blob();
@@ -199,14 +219,17 @@ async function synthesizeJaneVoice(text) {
     audio.onerror = (e) => {
       console.error('Audio playback error:', e);
       document.getElementById('error-message').textContent = 'Sorry, Jane could not play the voice answer.';
+      fallbackSpeak();
     };
-    audio.play().catch((err) => {
+    await audio.play().catch((err) => {
       console.error('Audio play() promise rejected:', err);
       document.getElementById('error-message').textContent = 'Sorry, Jane could not play the voice answer.';
+      fallbackSpeak();
     });
   } catch (err) {
     console.error('TTS synthesis error:', err);
     document.getElementById('error-message').textContent = 'Sorry, Jane could not speak the answer (exception).';
+    fallbackSpeak();
   }
 }
 
@@ -243,8 +266,9 @@ function startListening() {
       const fallbackText = await fetchOpenAIResponse(transcript);
       if (fallbackText) {
         appendChat('jane', fallbackText);
-        // Comment out TTS for now to revert to text-only fallback
-        // await synthesizeJaneVoice(fallbackText);
+        // Synthesize Jane's voice for fallback answers. This will attempt to use Azure TTS
+        // and fall back to the browser's built‑in speech synthesis if the call fails.
+        await synthesizeJaneVoice(fallbackText);
       } else {
         appendChat('jane', "Sorry, I couldn't answer that.");
       }
@@ -255,3 +279,16 @@ function startListening() {
   };
   recognition.start();
 }
+
+// Attach click handler to the Start Listening button once the DOM is loaded. Without
+// this the button will not trigger speech recognition.
+document.addEventListener('DOMContentLoaded', () => {
+  const listenBtn = document.getElementById('listen-btn');
+  if (listenBtn) {
+    listenBtn.addEventListener('click', () => {
+      // Clear any previous error message before starting a new session.
+      document.getElementById('error-message').textContent = '';
+      startListening();
+    });
+  }
+});
