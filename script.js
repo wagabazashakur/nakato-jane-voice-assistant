@@ -7,7 +7,9 @@ const responses = {
   'tell us about yourself': { text: "I began my hospitality career over five years ago with Hilton Suites Jabal Omar in Makkah, where I worked as a waitress from March 2018 to January 2024 in a very high demand and culturally diverse environment. During this time, I developed strong skills in guest relations, order accuracy, teamwork, and handling busy service periods with professionalism and grace. Working in a five star setting taught me the importance of attention to detail, anticipating guest needs, and ensuring every guest feels valued. I take pride in being approachable, adaptable, and committed to creating memorable experiences. I am excited about the opportunity to bring my international five star experience, along with my passion for hospitality, to your esteemed hotel, and I look forward to contributing to maintaining the high standards your guests expect.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' },
   'talk about yourself': { text: "I began my hospitality career over five years ago with Hilton Suites Jabal Omar in Makkah, where I worked as a waitress from March 2018 to January 2024 in a very high demand and culturally diverse environment. During this time, I developed strong skills in guest relations, order accuracy, teamwork, and handling busy service periods with professionalism and grace. Working in a five star setting taught me the importance of attention to detail, anticipating guest needs, and ensuring every guest feels valued. I take pride in being approachable, adaptable, and committed to creating memorable experiences. I am excited about the opportunity to bring my international five star experience, along with my passion for hospitality, to your esteemed hotel, and I look forward to contributing to maintaining the high standards your guests expect.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' },
   'where are you from': { text: "I am currently staying in Abu Dhabi, UAE, and I am originally from Uganda.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' },
-  // Use the same Jane voice clip for all answers to avoid missing files.
+  // Use the same Jane voice clip for these catch‑all prompts since separate
+  // recordings were not provided. You can add more clips to the `audio/`
+  // folder and update this map accordingly.
   'about yourself': { text: "I have several years of experience in hospitality.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' },
   'strengths': { text: "My strengths include communication and customer service.", audio: 'audio/Nakato-janeMP3-enhanced-v2.wav' }
   // Add more key phrases and audio files as needed
@@ -148,8 +150,42 @@ Whenever she faces a question not in her fixed Knowledge Base, she will:
 - Avoid guessing personal/private info not in the KB.
 `;
 
+// -----------------------------------------------------------------------------
+// Helper functions for retrieving API keys securely
+// These look first in localStorage, then in any global variables set in config.js.
+// They do not send the key anywhere; keys are stored only in the browser.
+function getOpenAiKey() {
+  return localStorage.getItem('openai_key') || window.OPENAI_API_KEY || '';
+}
+
+function getAzureKey() {
+  return localStorage.getItem('azure_tts_key') || window.AZURE_TTS_KEY || '';
+}
+
+function getAzureRegion() {
+  return localStorage.getItem('azure_region') || window.AZURE_REGION || '';
+}
+
+// Prompts the user for an OpenAI API key if none is found. Stores the key
+// in localStorage so it persists across sessions. Returns the key or an
+// empty string if the user cancels.
+function ensureOpenAiKey() {
+  let key = getOpenAiKey();
+  if (!key) {
+    key = prompt('Enter your OpenAI API key (it will be stored only in this browser):') || '';
+    if (key) {
+      localStorage.setItem('openai_key', key);
+    }
+  }
+  return key;
+}
+
 async function fetchOpenAIResponse(prompt) {
-  const apiKey = window.OPENAI_API_KEY;
+  const apiKey = ensureOpenAiKey();
+  if (!apiKey) {
+    // No API key provided; cannot fetch from OpenAI
+    return null;
+  }
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -167,31 +203,19 @@ async function fetchOpenAIResponse(prompt) {
       })
     });
     const data = await response.json();
-    return data.choices[0].message.content.trim();
+    return data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content.trim() : null;
   } catch (err) {
+    console.error('OpenAI API error:', err);
     return null;
   }
 }
 
 async function synthesizeJaneVoice(text) {
-  const azureKey = window.AZURE_TTS_KEY;
-  const azureRegion = window.AZURE_REGION;
-  /**
-   * Fallback to the browser's built‑in speech synthesis if Azure TTS is unavailable or fails.
-   */
-  function fallbackSpeak() {
-    try {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      window.speechSynthesis.speak(utterance);
-    } catch (fallbackErr) {
-      console.error('Fallback speech synthesis error:', fallbackErr);
-      document.getElementById('error-message').textContent = 'Sorry, Jane could not speak the answer.';
-    }
-  }
-  // If either key or region is missing, skip Azure and use the built‑in synthesis.
+  const azureKey = getAzureKey();
+  const azureRegion = getAzureRegion();
+  // If Azure TTS key or region is missing, do not speak (remain silent)
   if (!azureKey || !azureRegion) {
-    fallbackSpeak();
+    document.getElementById('error-message').textContent = 'Jane cannot speak this answer (Azure TTS unavailable).';
     return;
   }
   try {
@@ -207,8 +231,7 @@ async function synthesizeJaneVoice(text) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Azure TTS API error:', response.status, errorText);
-      document.getElementById('error-message').textContent = 'Sorry, Jane could not speak the answer (TTS error).';
-      fallbackSpeak();
+      document.getElementById('error-message').textContent = 'Jane cannot speak this answer (Azure TTS error).';
       return;
     }
     const blob = await response.blob();
@@ -218,18 +241,15 @@ async function synthesizeJaneVoice(text) {
     audio.onended = () => console.log('Audio playback ended');
     audio.onerror = (e) => {
       console.error('Audio playback error:', e);
-      document.getElementById('error-message').textContent = 'Sorry, Jane could not play the voice answer.';
-      fallbackSpeak();
+      document.getElementById('error-message').textContent = 'Jane cannot play the voice answer.';
     };
     await audio.play().catch((err) => {
       console.error('Audio play() promise rejected:', err);
-      document.getElementById('error-message').textContent = 'Sorry, Jane could not play the voice answer.';
-      fallbackSpeak();
+      document.getElementById('error-message').textContent = 'Jane cannot play the voice answer.';
     });
   } catch (err) {
     console.error('TTS synthesis error:', err);
-    document.getElementById('error-message').textContent = 'Sorry, Jane could not speak the answer (exception).';
-    fallbackSpeak();
+    document.getElementById('error-message').textContent = 'Jane cannot speak this answer (exception).';
   }
 }
 
@@ -246,42 +266,117 @@ function handleMicError(error) {
   document.getElementById('error-message').textContent = 'Microphone access failed. Please serve over https:// or http://localhost and allow mic permissions.';
 }
 
+// Global SpeechRecognition instance to support continuous listening. Declared
+// outside of startListening so that onend can restart it without creating
+// multiple concurrent recognizers. A single instance is reused across
+// sessions to simplify management.
+let recognitionInstance = null;
+let lastTranscript = '';
+let lastResponseTime = 0;
+let lastJaneAnswer = '';
+let isJaneSpeaking = false;
+
 function startListening() {
-  let SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
+  const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognitionClass) {
     handleMicError('SpeechRecognition not supported');
     return;
   }
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.interimResults = false;
-  recognition.onresult = async (event) => {
-    const transcript = event.results[0][0].transcript;
+  // If an existing recognition instance exists, stop it before creating a new one.
+  if (recognitionInstance) {
+    try {
+      recognitionInstance.onend = null;
+      recognitionInstance.onresult = null;
+      recognitionInstance.onerror = null;
+      recognitionInstance.stop();
+    } catch (e) {
+      console.warn('Error stopping previous recognition instance:', e);
+    }
+  }
+  recognitionInstance = new SpeechRecognitionClass();
+  recognitionInstance.lang = 'en-US';
+  recognitionInstance.continuous = true;
+  recognitionInstance.interimResults = false;
+  // Helper to pause recognition
+  function pauseRecognition() {
+    try {
+      recognitionInstance.onend = null;
+      recognitionInstance.stop();
+    } catch (e) {}
+  }
+  // Helper to resume recognition
+  function resumeRecognition() {
+    try {
+      recognitionInstance.start();
+    } catch (e) {}
+  }
+  recognitionInstance.onresult = async (event) => {
+    if (isJaneSpeaking) return;
+    const result = event.results[event.results.length - 1];
+    const transcript = result[0].transcript.trim();
+    const now = Date.now();
+    if ((transcript === lastTranscript && now - lastResponseTime < 2000) || transcript === lastJaneAnswer) {
+      return;
+    }
+    lastTranscript = transcript;
+    lastResponseTime = now;
     appendChat('user', transcript);
     let answer = getJaneAnswer(transcript);
     if (answer) {
       appendChat('jane', answer.text);
-      new Audio(answer.audio).play();
+      lastJaneAnswer = answer.text.trim();
+      try {
+        isJaneSpeaking = true;
+        pauseRecognition();
+        const audio = new Audio(answer.audio);
+        audio.onended = () => {
+          isJaneSpeaking = false;
+          resumeRecognition();
+        };
+        await audio.play();
+        // If onended doesn't fire, resume after playback
+        isJaneSpeaking = false;
+        resumeRecognition();
+      } catch (e) {
+        isJaneSpeaking = false;
+        resumeRecognition();
+        console.warn('Audio playback error for prerecorded clip:', e);
+      }
     } else {
       const fallbackText = await fetchOpenAIResponse(transcript);
       if (fallbackText) {
         appendChat('jane', fallbackText);
-        // Synthesize Jane's voice for fallback answers. This will attempt to use Azure TTS
-        // and fall back to the browser's built‑in speech synthesis if the call fails.
+        lastJaneAnswer = fallbackText.trim();
+        isJaneSpeaking = true;
+        pauseRecognition();
         await synthesizeJaneVoice(fallbackText);
+        isJaneSpeaking = false;
+        resumeRecognition();
       } else {
         appendChat('jane', "Sorry, I couldn't answer that.");
+        lastJaneAnswer = "Sorry, I couldn't answer that.";
       }
     }
   };
-  recognition.onerror = (event) => {
+  recognitionInstance.onerror = (event) => {
     handleMicError(event.error);
   };
-  recognition.start();
+  // When recognition ends (e.g., due to a pause or network glitch), restart
+  // it automatically, but only if Jane is not speaking.
+  recognitionInstance.onend = () => {
+    if (recognitionInstance && !isJaneSpeaking) {
+      try {
+        recognitionInstance.start();
+      } catch (e) {
+        console.warn('Failed to restart recognition:', e);
+      }
+    }
+  };
+  recognitionInstance.start();
 }
 
-// Attach click handler to the Start Listening button once the DOM is loaded. Without
-// this the button will not trigger speech recognition.
+// Attach the click handler after the DOM has loaded. Without this, clicking
+// the "Start Listening" button would not trigger speech recognition.
 document.addEventListener('DOMContentLoaded', () => {
   const listenBtn = document.getElementById('listen-btn');
   if (listenBtn) {
